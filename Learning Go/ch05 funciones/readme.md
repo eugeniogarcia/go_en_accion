@@ -17,5 +17,5 @@ func main() {
 }
 ```
 
-- En `defer_db` se muestra el uso de `defer`
+- En `defer_example` se muestra el uso de `defer`
 
