@@ -1,7 +1,18 @@
 - `uso_interfaces`. Como declarar y utilzar interfaces
+
 - `method_set`. Vemos como si tenemos definido una interface, y un tipo que implementa esa interface. Cuando los metodos del tipo tienen como _receiver_ el valor, la interface se cumple tanto cuando estamos usando una variable de tipo como un puntero del tipo. Si el metodo se define con un receiver que es un puntero, entoces la interface solo se cumplira cuando la variable este apuntando a un puntero de ese tipo 
+
 - Un interface se modela en el runtime de go como una estructura con dos elementos. Uno indica el tipo y el otro apunta al contenido. De esta forma, cuando a una variable declarada como interface se le asigna un valor que respeta la definición de la interface, se le asignará el tipo del valor, y la dirección del contenido. En `type_assertions` y `type_switch` podemos ver como averiguar cual es el tipo al que esta apuntando una variable de tipo interface  
+
 - En `dependecy_injection` se presenta un ejemplo en el que se usa el patron de injección combinado con el uso de factories. La idea general es 
     - desacoplar lógicas diferentes en sendos interfaces que se pueden implementar con diferentes tipos
     - crear una factory que espera que le pasemos los interfaces necesarios, y devuelva un tipo concreto (un struct en estos ejemplos) donde se implemente la lógica de negocio recurriendo a la implementacion de los interfaces. Pasando diferentes implementaciones del interface a la factory, obtenemos diferentes comportamientos. Cada implementacion del interfaz esta desacoplada del resto, y puede probarse más facilmente
-    - El principio general es usar interfaces como argumentos de funciones, y tipos concretos como resultado de las funciones. Esto es más facil de evolucionar. Si devolvieramos una interface, si necesitamos añadir un campo más tendriamos que adecuar todos los sitios donde se usa la factoria (aunque no usaran ese nuevo dato) 
+    - El principio general es usar interfaces como argumentos de funciones, y tipos concretos como resultado de las funciones. Esto es más facil de evolucionar. Si devolvieramos una interface, si necesitamos añadir un campo más tendriamos que adecuar todos los sitios donde se usa la factoria (aunque no usaran ese nuevo dato)
+
+- En `interfaces` tenemos otra demostración. Aquí tenemos una función que devuelve una interface. Esto significa que cualquier tipo que implemente el tipo interface puede ser retornado:
+
+    - El compilador no nos dejará retornar un tipo que no implemente la interface
+
+    - Si tenemos una variable nil de un tipo que implementa la interface, y devolvemos esa variable, lo que recibirá el _caller_ es una interface. La interface es una struct que tiene dos campos, el tipo - que estaría informado con el tipo de la variable - y el valor - informado con el valor
+
+    - Si tenemos un tipo que implementa la interface usando como receivers punteros, entonces será el puntero de ese tipo quien implemente la interface.
