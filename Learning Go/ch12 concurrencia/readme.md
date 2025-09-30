@@ -118,7 +118,7 @@ func main() {
 }
 ```
 
-Una forma de evitar el _gorutine leak_ es cancelar la ejecución. En el ejemplo `context_cancel` tenemos una demostración del uso de contextos de ejecución.
+Una forma de evitar el _gorutine leak_ es cancelar la ejecución. En el ejemplo `context_cancel` (hay un capítulo específico para tratar los diferentes tipos de contextos) tenemos una demostración del uso de contextos de ejecución.
 
 ```go
 ctx, cancel := context.WithCancel(context.Background()) //1. creamos un contexto cancelable. Devuelve el contexto y una función para cancelarlo
@@ -135,3 +135,91 @@ case ch <- i:
 ```go
 cancel() //3. llamamos a la función para cancelar el contexto
 ```
+
+## implementar backpressure/throtling
+
+En `backpressure` tenemos un ejemplo en el que se implementa throtling utilizando _channels_ y la propiedad que tienen para tratar un número concreto de mensajes (0 si no tienen buffer, varios si tienen buffer).
+
+## Cerrar canales
+
+En `close_case` tenemos un ejemplo en el que se muestra la mejor forma de tratar canales, que básicamente es:
+
+- cerrar el canal cuando ya no se necesite. El productor cierra el canal cuando no necesite escribir más
+- verificar cuando el canal esta cerrado. Cuando leemos de un canal cerrado la respuesta es inmediata. Para distinguir este escenario del caso en el que obtenemos respuesta inmediata de un canal porque había datos pendientes de ser leidos, usamos la sintaxix `valor, ok := <-canal`. Si `!ok` el canal esta cerrado. Si está cerrado nos combiene hacer `canal = nil` de modo que el _case_ no vuelva a ser true nunca más (de lo contrario entraría de forma indefinida por el case) 
+
+## Timeout
+
+Para implementar un timeout usamos un contexto 
+
+```go
+ctx, cancel := context.WithTimeout(context.Background(), limit)
+```
+
+este contexto nos permite cancelar la ejecución a voluntad con `cancel()`, y activa un control de timeout con `limit` segundos.
+
+```go
+//observamos el canal de salida y el contexto
+select {
+case result := <-out:
+    return result, nil
+case <-ctx.Done(): //habrá un token cuando se alcance el timeout o se cancele el contexto
+    var zero T
+    return zero, errors.New("timed out")
+}
+```
+
+## waitgroups
+
+Tenemos un ejemplo de waitgroups en waitgroup_close_once`.
+
+Un waitgroup es un artefacto que nos permite controlar las ejecuciones. Creamos un waitgroup. Cada variable de tipo witgroup matiene su propio estado. Si, por ejemplo, pasamos un waitgroup como argumento de una función, se creará una copia del waitgroup y por ende no estaremos controlando el mismo estado en la función (si por lo que fuera esto es lo que necesitamos, tendríamos que pasar un puntero al waitgroup). En este ejemplo usamos closures para que cada gorutina tenga acceso al __mismo waitgroup__.
+
+el valor `nil` del waitgroup es `0`:
+
+```go
+var wg sync.WaitGroup //creamos un waitgroup
+```
+
+Podemos incrementar y decrementar la cuenta:
+
+```go
+wg.Add(num)//incrementamos el contador del waitgroup
+```
+
+en este ejemplo vamos a indicar con `num` el número de gorutinas que vamos a lanzar. Para decrementar el contador:
+
+```go
+defer wg.Done() //decrementamos el contador del waitgroup
+```
+
+en este caso estamos decrementando la cuenta en el `defer()` de la gorutina, de modo que nos aseguramos de que cuando una gorutina termine se actualice el contador.
+
+Por último, y aqui esta la gracia, podemos bloquear la ejecución hasta que el contador del waitgroup llegue a cero:
+
+```go
+wg.Wait() //esperamos a que el contador del waitgroup llegue a 0
+```
+
+## Run code exactly once
+
+En el ejemplo `sync_once` se demuestra como controlar que un código solo se ejecute una sola vez. Se declara una variable `var once sync.Once`. `sync.Once` es un tipo que mantiene un estado interno para controlar cuando se ha hecho la llamada a `Do(func(){})`, de modo que solo se haga una sola vez. El estado se controla por instancia, de modo que si tuvieramos otro `var2 once sync.Once`, `var` y `var2` tendrían su propio estado.
+
+Cuando hacemos `Do(func(){})` se ejecuta `func()` solo la primera vez. Llamadas sucesivas a `Do` no ejecutarían la función.
+
+Hay otras primitvas similares, todas ellas garantizan que la ejecucion de la función se haga solo una vez, pero:
+
+- `sync.OnceFunc`. La función no devuelve datos 
+- `sync.OnceValue`. La función devuelve un dato
+- `sync.OnceValues`. La función devuelve dos datos
+
+## Mutex
+
+En la librería estandard de GO también se incluyen primitivas que implementan un mutex, y un mutex de lectura/escritura.
+
+`sync.Mutext` incluye los métodos `Lock()` y `Unlock()`.
+
+`sync.RWMutex` incluye los métodos `Lock()` y `Unlock()` para controlar la escritura, y `RLock()` y `RUnlock()` para controlar la lectura
+
+Hay que __asegurar__ que siempre se hace `Unlock()`. Lo más habitual es usar `defer()` para garantizar esto.
+
+En el ejemplo `mutex` podemos ver el uso de un `sync.RWMutex`.
