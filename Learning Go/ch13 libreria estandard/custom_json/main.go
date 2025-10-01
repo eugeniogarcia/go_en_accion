@@ -74,13 +74,13 @@ func main() {
 	}`
 
 	var o Order
-	err := json.Unmarshal([]byte(data), &o)
+	err := json.Unmarshal([]byte(data), &o) //deserializamos, en el objeto de tipo Order
 	if err != nil {
 		panic(err)
 	}
 	fmt.Printf("%+v\n", o)
 	fmt.Println(o.DateOrdered.Month())
-	out, err := json.Marshal(o)
+	out, err := json.Marshal(o) //serializamos, de nuevo a JSON
 	if err != nil {
 		panic(err)
 	}
