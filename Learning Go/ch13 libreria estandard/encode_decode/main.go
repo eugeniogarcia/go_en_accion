@@ -20,12 +20,12 @@ func main() {
 		Age  int    `json:"age"`
 	}
 	//Un decoder sobre un stream de datos
-	dec := json.NewDecoder(strings.NewReader(data))
+	dec := json.NewDecoder(strings.NewReader(data)) //creamos un Decoder a partir de un io.Reader
 	var b bytes.Buffer
 	enc := json.NewEncoder(&b)
 	for {
 		//Decodificamos un elemento del stream
-		err := dec.Decode(&t)
+		err := dec.Decode(&t) //leemos del Decoder hasta llegar al io.EOF
 		if err != nil {
 			if errors.Is(err, io.EOF) {
 				break
@@ -40,4 +40,5 @@ func main() {
 	}
 	out := b.String()
 	fmt.Println(out)
+
 }
