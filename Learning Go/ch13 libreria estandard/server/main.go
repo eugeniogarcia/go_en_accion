@@ -17,7 +17,7 @@ func main() {
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 90 * time.Second,
 		IdleTimeout:  120 * time.Second,
-		Handler:      HolaMundoHandler{}, //handler
+		Handler:      HolaMundoHandler{}, //handler. La estructura HolaMundoHandler implementa la interface Handler
 	}
 	err := s.ListenAndServe()
 	if err != nil {
