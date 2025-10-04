@@ -41,6 +41,32 @@ if err == zip.ErrFormat {
 
 ## Wrap Errors
 
+### Error
+
+La interface `error` es parte del built in:
+
+```go
+interface error {
+	func Error() string
+}
+```
+
+cuando llamamos al método `New` del paquete `errors` el método devuelve una interface `error` (si, es un método que devuelve una interface!!!). En la implementación de `errors.New()` el tipo que se crea es:
+
+```go
+type errorString struct { //este tipo no se exporta,...
+	s string
+}
+
+func (e *errorString) Error() string {//... e implementa la interface error (en realidad el puntero a este tipo implementa la interface)
+	return e.s
+}
+
+func New(text string) error {
+	return &errorString{text}//devuelve un puntero a la estructura que hemos instanciado del tipo errorString
+}
+```
+
 ### Teoría
 
 Esta feature consiste en "añadir" a un error otro error o errores. Supongamos que tenemos un error A, y queremos producir otro error B que "incorpore" el error A. Lo que haremos es wrappear A con el nuevo error. `B:=fmt.Errorf("[mensaje de error correspondiente a B] %w", A)`. También es posible wrappear varios errores. Supongamos que tenemos A1, A2, A3, haríamos `B:=fmt.Errorf("[mensaje de error correspondiente a B] %w %w %w", A1, A2, A3)`. El convenio es incluir los errores, los `%w` al final. 
@@ -84,7 +110,7 @@ La funcion `fmt.Errorf` devuelve:
 - Si hay un `%w`:
 
     ```go
-    w := &wrapError{msg: s} //el puntero de wrapError es un error
+    w := &wrapError{msg: s} //el puntero de wrapError es un error (implementa la interface Error)
     w.err, _ = a[p.wrappedErrs[0]].(error) //comprobamos que lo que estamos pasando con argumento sea un error
     err = w
     ```
@@ -106,7 +132,6 @@ La funcion `fmt.Errorf` devuelve:
         return errors.Join(m.Errors...).Error() //usamos errors.Join para unir los mensajes de los errores wrappeados
     }
     ``` 
-
 
 Y para completar la feature, dos cosas:
 
@@ -151,7 +176,7 @@ Tenemos un ejemplo en `wrapped`.
 
 ## errors.As, errors.Is
 
-Estos métodos sirben para comprobar si un error **o entre los errores _empaquetados_ en el error** tenemos un error determinado (`errors.Is`) o uno que implemente un determinado tipo (`errors.As`).
+Estos métodos sirven para comprobar si un error **o entre los errores _empaquetados_ en el error** tenemos un error determinado (`errors.Is`) o uno que implemente un determinado tipo (`errors.As`).
 
 ### errors.Is
 
