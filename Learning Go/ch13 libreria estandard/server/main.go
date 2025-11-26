@@ -7,6 +7,7 @@ import (
 
 type HolaMundoHandler struct{}
 
+// Hacemos que HolaMundoHandler implemente la interface http.Handler
 func (hh HolaMundoHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte("Hola!\n")) //enviamos la respuesta
 }

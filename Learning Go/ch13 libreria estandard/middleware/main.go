@@ -9,19 +9,19 @@ import (
 func main() {
 	terribleSecurity := ProveedorSeguridad("GOPHER")
 
+	// creamos un multiplexador de rutas...
 	mux := http.NewServeMux()
 
-	// to apply the middleware to just the single route
+	// ...añadimos una ruta al mux usando un handler
 	mux.Handle("/hola", terribleSecurity(Cronometra(
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte("Hola Mundo!\n"))
 		}))))
 
-	// or to apply the middleware to every route in the mux:
-	//
-	//	mux.HandleFunc("/hola", func(w http.ResponseWriter, r *http.Request) {
-	//		w.Write([]byte("Hola Mundo!\n"))
-	//	})
+	// ...añadimos una ruta al mux usando una función (la función tiene que tener la firma que se corresponde con un handler)
+	mux.HandleFunc("/adios", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Adios Mundo!\n"))
+	})
 	//	mux = terribleSecurity(RequestTimer(mux))
 
 	s := http.Server{

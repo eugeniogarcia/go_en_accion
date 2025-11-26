@@ -44,8 +44,9 @@ func logic(ctx context.Context, info string) (string, error) {
 
 ## Uso con http
 
-
 ### cliente
+
+Usaremos el servicio `http://httpbin.org` para probar nuestro cliente http.
 
 En `cancel_http` tenemos un ejemplo de cliente http que utiliza un contexto. Creamos una request con un contexto determinado (primero creamos el contexto, y luego se lo pasamos a la funcion helper `http.NewRequestWithContext`). Si durante la ejecución de la petición cancelaramos el contexto, por ejemplo, el cliente http se detendría:
 
@@ -86,4 +87,67 @@ case <-ctx.Done():
 
 ### servidor
 
-El paquete que gestiona los clientes y los servidores http se desarrollo antes de que se incorporase el contexto en go, y por este motivo no sigue el convenio que comentaba antes, de pasar el contexto como argumento en las funciones que lo usan. 
+El paquete que gestiona los clientes y los servidores http se desarrollo antes de que se incorporase el contexto en go, y por este motivo no sigue el convenio que comentaba antes, de pasar el contexto como argumento en las funciones que lo usan. El patrón que tenemos que aplicar en estos casos podemos observarlo en el ejemplo context_patterns`. Veremos varios casos de uso
+
+- Uso en un Middleware
+- Uso en la lógica de negocio de un backend
+- Propagar el contexto a otros servicios - llamados por el backend
+
+#### Middleware
+
+Como enriquecer el contexto en un middleware, de modo que pueda usarse ya modificado en el resto de la cadena
+
+- Paso 1. _Extraemos el contexto_ de la request http
+- Paso 2. _Incorporamos_ al contexto lo que necesitemos usando el método `context.WithValue(ctx, key, valor)` (**notese que es una helper function, no es parte de la interface que define un contexto**). Esto crea un contexto que wrappea el contexto original. Podemos recuperar valores del contexto con `ctx.Value(key)`
+- Paso 3. _Actualizamos la request_ con el nuevo contexto
+- Paso 4. Continua la ejecución
+
+```go
+// Middleware. Toma un handler y devuelve un handler
+func Middleware(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {
+		// Paso 1. Obtenemos de la request el contexto
+		ctx := req.Context()
+		// Paso 2. Hacemos algo con el contexto
+		// Paso 3. Asociamos a la request este contexto
+		req = req.WithContext(ctx)
+
+		// Paso 4. Llamamos al siguiente handler de la cadena, pero a partir de este punto el contexto ya esta enriquecido
+		handler.ServeHTTP(rw, req)
+	})
+}
+```
+
+#### Backend
+
+Eventualmente la razón de ser del contexto es utilizarlo. 
+
+```go
+func handler(rw http.ResponseWriter, req *http.Request) {
+	// Paso 1. Obtenemos de la request el contexto
+	ctx := req.Context()
+
+[...]
+}
+```
+
+#### Propagar
+
+Podemos propagar el contexto a otros servicios, de forma que se compartan dataos y se cree, ..., un contexto de ejecución. Por ejemplo, para implementar trazing.
+
+```go
+func (sc ServiceCaller) callAnotherService(ctx context.Context, data string) (string, error) {
+	// Paso 1. Creamos la request HTTP, asociando el contexto (no creamos un contexto nuevo, sino que usamos el que nos pasan)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		"http://example.com?data="+data, nil)
+	if err != nil {
+		return "", err
+	}
+	resp, err := sc.client.Do(req)
+	if err != nil {
+		return "", err
+	}
+
+[...]
+}
+```
