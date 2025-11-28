@@ -187,3 +187,45 @@ func UserFromContext(ctx context.Context) (string, bool) {
 	return user, ok
 }
 ```
+
+## timeout
+
+Podemos crear un contexto con timeout. Lo que nos permite hacer este contexto es a) cancelar - como un cancellable - y b) definir un timeout. Cuando se alcanza el timeout se como si hubieramos cancelado el contexto:
+
+```go
+// Creamos un contexto padre con timeout de 3 segundos
+ctx, cancelFuncParent := context.WithTimeout(context.Background(), 3*time.Second)
+// Aseguramos que almenos se llame a cancel una vez para liberar recursos
+defer cancelFuncParent()
+```
+
+podemos encadenar varios contextos. Por ejemplo, si queremos poder indicar un motivo de cancelación, y al mismo tiempo definir un timeout:
+
+```go
+// Creamos un contexto padre con timeout de 3 segundos
+ctx, cancelFuncParent := context.WithTimeout(context.Background(), 3*time.Second)
+// Aseguramos que almenos se llame a cancel una vez para liberar recursos
+defer cancelFuncParent()
+// Creamos un contexto hijo que puede ser cancelado con un motivo
+ctx, cancelFunc := context.WithCancelCause(ctx)
+// Aseguramos que almenos se llame a cancel una vez para liberar recursos
+defer cancelFunc(nil)
+```
+
+podemos ver un ejemplo de esto en `timeout_error_http`.
+
+Si definimos varios timeouts en el mismo contexto, el primero que se dispare cancelará la ejecución:
+
+```go
+func main() {
+	ctx := context.Background()
+	parent, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	child, cancel2 := context.WithTimeout(parent, 3*time.Second)
+	defer cancel2()
+	start := time.Now()
+	<-child.Done()
+	end := time.Now()
+	fmt.Println(end.Sub(start).Truncate(time.Second))
+}
+```
