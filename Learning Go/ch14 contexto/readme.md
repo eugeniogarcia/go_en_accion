@@ -151,3 +151,39 @@ func (sc ServiceCaller) callAnotherService(ctx context.Context, data string) (st
 [...]
 }
 ```
+
+## key-values
+
+El key y el value son de tipo `any`, pero para key debemos utilizar un tipo que sea comparable. Cuando añadimos un key value a un contexto lo que hacemos es crear un wrapper alrededor del contexto anterior en el que se añaden los key. Si usamos un key que ya existia lo enmascaremos. Al objeto de garantizar que el key sea único podemos sar estas dos técnicas (extraidas del ejemplo `context_user`):
+
+- definimos una key, que será unica - para evitar el enmascaramiento -, y que no exportamos:
+
+```go
+// Declaramos un tipo con base int para usarlo como key en el contexto
+type userKey int
+
+// Definimos la lista de keys usando iota. En este caso solo tenemos una key. Con esto garantizamos la unicidad de la key. key no se exporta es solo para uso interno.
+const (
+	_ userKey = iota
+	key
+)
+```
+
+- usamos el helper `context.WithValue()` para crear una nueva key-value. En este ejemplo la key que se usa es algo interno al paquete. El usuario no vera ni tiene que usar la key:
+
+```go
+func ContextWithUser(ctx context.Context, user string) context.Context {
+	// Usamos la helper function context.WithValue para crear un nuevo contexto que wrappea ctx e incluye una nueva key/valor
+	return context.WithValue(ctx, key, user)
+}
+```
+
+- recuperamos el valor usado el método del contexto `Value()`:
+
+```go
+func UserFromContext(ctx context.Context) (string, bool) {
+	// Recuperamos un valor. Como es el valor es un interface - any - podemos hacer type assertion. En este caso esperamos un string. ok sera true si la aserción ha ido bien. En user tendremos el valor asociado a la key
+	user, ok := ctx.Value(key).(string)
+	return user, ok
+}
+```
