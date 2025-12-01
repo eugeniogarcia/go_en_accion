@@ -59,4 +59,21 @@ cuando el recurso que estamos creando es un archivo, si creamos los archivos den
 
 Tenemos un ejemplo de estas técnicas en `cleanup`
 
-## Variables de entorno
+### Variables de entorno
+
+Es una práctica habitual utilizar variables de entorno para configurar como debe comportarse una aplicación. Para crear estas variables de entorno durante los tests - y luego eliminarlas -, se incluye en `testing.T` ña función `t.Setenv`:
+
+```go
+func TestEnvVarProcess(t *testing.T) {
+    // Crea la variable de entorno
+    t.Setenv("OUTPUT_FORMAT", "JSON")
+
+
+	cfg := ProcessEnvVars()
+	if cfg.OutputFormat != "JSON" {
+		t.Error("OutputFormat not set correctly")
+	}
+	
+    // La variable de entorno OUTPUT_FORMAT se reseteará automáticamente al terminar el caso de prueba
+}
+```
