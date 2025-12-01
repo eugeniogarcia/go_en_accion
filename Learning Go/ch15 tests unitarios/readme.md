@@ -77,3 +77,7 @@ func TestEnvVarProcess(t *testing.T) {
     // La variable de entorno OUTPUT_FORMAT se reseteará automáticamente al terminar el caso de prueba
 }
 ```
+
+### Datos de prueba
+
+Hay una carpeta que se usa por convenio, `testfata` para guardar datos de prueba. Esta carpeta se ubica en el directorio raiz del paquete con los casos de prueba. En el ejemplo `text` podemos ver como se usa.
