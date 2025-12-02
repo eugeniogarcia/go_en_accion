@@ -152,3 +152,18 @@ for _, d := range data {
 	})
 }
 ```
+
+## Lanzar casos en paralelo
+
+Por defecto los casos de prueba se ejecutan de forma secuencial. Si queremos que el caso de prueba se ejecute en paralelo bastará con marcarlo en la primera línea con la llamada a `t.Parallel()`:
+
+```go
+t.Run(d.name, func(t *testing.T) {
+	t.Parallel() // marcamos el caso de prueba, de modo que se ejecuta en paralelo. Se lanza lo que sigue a continuación, y sin esperar se ejecuta el siguiente caso de prueba
+	fmt.Println(d.input, d.output)
+	out := toTest(d.input)
+	if out != d.output {
+		t.Error("didn't match", out, d.output)
+	}
+})
+```
