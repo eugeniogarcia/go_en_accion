@@ -81,3 +81,32 @@ func TestEnvVarProcess(t *testing.T) {
 ### Datos de prueba
 
 Hay una carpeta que se usa por convenio, `testfata` para guardar datos de prueba. Esta carpeta se ubica en el directorio raiz del paquete con los casos de prueba. En el ejemplo `text` podemos ver como se usa.
+
+## Comparar
+
+Ejemplo `cmp`.
+
+Cuando hay que comparar estructuras podemos utilizar una librería de Google, `github.com/google/go-cmp/cmp`. La librería podemos usarla de dos formas:
+
+- comparar directamente. El resultado indica cuales son los deltas entre las dos estructuras
+
+```go
+// Comparamos las dos estructuras completas. El resultado es un texto en el que se indican las diferencias.
+if diff := cmp.Diff(esperado, deseado); diff != "" {
+	t.Error(diff) // Si hay diferencias, fallamos el test mostrando las diferencias, y continuamos con otro test.
+}
+```
+
+- comparar usando una función de comparación. La función implementa la lógica de comparación
+
+```go
+// Comparamos las dos estructuras, pero esta vez usando una función de comparación que no tiene en cuenta el campo DateAdded.
+comparer := cmp.Comparer(func(x, y Person) bool {
+	return x.Name == y.Name && x.Age == y.Age
+})
+
+// el resultado de la comparación es un texto en el que se indican las diferencias.
+if diff := cmp.Diff(esperado, deseado, comparer); diff != "" {
+	t.Error(diff) // Si hay diferencias, fallamos el test mostrando las diferencias, y continuamos con otro test.
+}
+```
