@@ -110,3 +110,45 @@ if diff := cmp.Diff(esperado, deseado, comparer); diff != "" {
 	t.Error(diff) // Si hay diferencias, fallamos el test mostrando las diferencias, y continuamos con otro test.
 }
 ```
+
+## Definir tests programáticamente
+
+En el ejemplo `table` mostramos como crear programáticamente casos de prueba - una tabla de casos de prueba. Podemos usar `t.Run(d.name, func(t *testing.T) {...})` para ejecutar un caso de prueba definido en la función. Combinando esto con _closures_ podemos definir de forma flexible una batería de casos de prueba que son _iguales_ excepto por los parámetros/combinaciones que probamos. Por ejemplo, en este caso definimos una slice con todas las combinaciones a probar y su resultado esperado:
+
+```go
+data := []struct {
+	name     string //nombre del caso de prueba
+	num1     int	//argumento 1
+	num2     int	//argumento 2
+	op       string	//operacion	
+	expected int	//resultado esperado
+	errMsg   string	//mensaje de error en caso de no obtener el resultado esperado
+}{
+	{"addition", 2, 2, "+", 4, ""},
+	{"subtraction", 2, 2, "-", 0, ""},
+	{"multiplication", 2, 2, "*", 4, ""},
+	{"division", 2, 2, "/", 1, ""},
+	{"bad_division", 2, 0, "/", 0, `division by zero`},
+}
+```
+
+luego en un loop lanzamos los casos de prueba:
+
+```go
+for _, d := range data {
+	t.Run(d.name, func(t *testing.T) {
+		result, err := DoMath(d.num1, d.num2, d.op)
+		if result != d.expected {
+			t.Errorf("Expected %d, got %d", d.expected, result)
+		}
+		var errMsg string
+		if err != nil {
+			errMsg = err.Error()
+		}
+		if errMsg != d.errMsg {
+			t.Errorf("Expected error message `%s`, got `%s`",
+				d.errMsg, errMsg)
+		}
+	})
+}
+```
