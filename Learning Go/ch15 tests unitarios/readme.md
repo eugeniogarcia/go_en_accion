@@ -316,6 +316,3 @@ adicionalmente podemos incluir en el benchmark el uso de memoria:
 ```ps
 go test -bench=.
 ```
-
-## Stubs
-
