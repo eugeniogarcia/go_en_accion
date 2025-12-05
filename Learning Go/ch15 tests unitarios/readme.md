@@ -245,3 +245,77 @@ Si ahora hicieramos
 se ejecutarán, a modo de regresión, los casos que el fuzzer detecto como erróneos (usa el dato que se guardo en `testdata\fuzz\`).
 
 ## Benchmarks
+
+Los benchmarks se definen en métodos con la siguiente firma: `func BenchmarkXxxxxx(b *testing.B) {`. La estructura típicamente tiene un loop en el que iteramos hasta `b.N`. El objeto del loop es ponderar los resultados en varios experimentos:
+
+```go
+func BenchmarkFileLen1(b *testing.B) {
+	// loop principal de benchmark
+	for i := 0; i < b.N; i++ {
+		result, err := FileLen("testdata/data.txt", 1)
+		if err != nil {
+			b.Fatal(err)
+		}
+		blackhole = result // usamos el resultado para evitar optimizaciones (si hacemos una llamada a una funcion, por ejemplo FileLen, y no usamos su resultado, el compilador puede optimizar y eliminar la llamada)
+	}
+}
+```
+
+también podemos definir los benchmark de forma programática. Por ejemplo aquí probamos con diferentes valores de longitud de palabra:
+
+```go
+func BenchmarkFileLen(b *testing.B) {
+	// vamos a hacer el becnkmark para varios tamaños de palabra
+	for _, v := range []int{1, 10, 100, 1000, 10000, 100000} {
+		// lanzamos un benchmark para cada configuración
+		b.Run(fmt.Sprintf("FileLen-%d", v), func(b *testing.B) {
+			for i := 0; i < b.N; i++ {
+				result, err := FileLen("testdata/data.txt", v)
+				if err != nil {
+					b.Fatal(err)
+				}
+				blackhole = result
+			}
+		})
+	}
+}
+```
+
+```ps
+go test -bench=BenchmarkFileLen -benchmem 
+
+goos: windows
+goarch: amd64
+pkg: github.com/learning-go-book-2e/ch15/bench
+cpu: 13th Gen Intel(R) Core(TM) i7-1365U
+BenchmarkFileLen1-12                   6         206920217 ns/op           65906 B/op      65208 allocs/op
+BenchmarkFileLen/FileLen-1-12                  5         204911320 ns/op           65905 B/op      65208 allocs/op
+BenchmarkFileLen/FileLen-10-12                54          19837691 ns/op          105048 B/op       6525 allocs/op
+BenchmarkFileLen/FileLen-100-12              525           2179823 ns/op           73944 B/op        657 allocs/op
+BenchmarkFileLen/FileLen-1000-12            2668            451986 ns/op           69304 B/op         70 allocs/op
+BenchmarkFileLen/FileLen-10000-12           8931            141645 ns/op           82616 B/op         11 allocs/op
+BenchmarkFileLen/FileLen-100000-12         10000            140110 ns/op          213688 B/op          5 allocs/op
+PASS
+ok      github.com/learning-go-book-2e/ch15/bench       15.310s
+```
+
+podemos ver los datos para cada valor del parámetro. Para ejecutar los benchmarks haremos:
+
+```ps
+go test -bench=[benchmark a ejecutar]
+```
+
+podemos ejecutar todos los benchmarks:
+
+```ps
+go test -bench=[benchmark a ejecutar] -benchmem
+```
+
+adicionalmente podemos incluir en el benchmark el uso de memoria:
+
+```ps
+go test -bench=.
+```
+
+## Stubs
+
