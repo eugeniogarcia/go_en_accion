@@ -167,3 +167,81 @@ t.Run(d.name, func(t *testing.T) {
 	}
 })
 ```
+
+## Covertura de código
+
+Para comprobar la cobertura de código ejecutaremos los tests de la siguiente forma:
+
+```ps
+go test -v -cover
+```
+
+podemos guardar los resultados de la covertura con:
+
+```ps
+go test -v -cover -coverprofile c.out
+```
+
+con go se incluye la `cover tool`, que nos muestra formateado en una página html los resultados de la covertura:
+
+```ps
+go tool cover -html c.out
+```
+
+## Fuzzing
+
+Fuzzing es una técnica que trata de ejecutar el código con diferentes permutaciones de datos de prueba, con la finalidad de detectar comportamientos anómalos que tienen su origen en la naturaleza del dato (por ejemplo, podemos tener una cobertura del 100% y seguir teniendo errores en el código, errores que solo se manifiestan con ciertos datos).
+
+En go podemos incluir un caso, y solo uno, de Fuzzing, en un método con la siguiente firma: `func Fuzzxxxx(f *testing.F) {`. Típicamente lo que haremos es utilizar `*testing.F` de la siguiente forma:
+
+- crear un seed de datos (_seed corpus_). Se alimentan con el método `f.Add(arg1, arg2, arg3)` juegos de datos. Tomando este juego como punto de partida, el Fuzzer creará diferentes permutaciones de datos
+
+```go
+// crea un slice de slices de bytes como see de datos
+testcases := [][]byte{
+	[]byte("3\nhello\ngoodbye\ngreetings\n"),
+	[]byte("0\n"),
+}
+// crea el seed de datos
+for _, tc := range testcases {
+	f.Add(tc) // Use f.Add to provide a seed corpus
+}
+```
+
+- Definir el caso de prueba con `f.Fuzz(func(t *testing.T, arg1, arg2, arg3) {`
+
+```go
+f.Fuzz(func(t *testing.T, in []byte) {
+	r := bytes.NewReader(in)
+	out, err := ParseData(r)
+	if err != nil {
+		t.Skip("invalid number")
+	}
+	roundTrip := ToData(out)
+	rtr := bytes.NewReader(roundTrip)
+	out2, err := ParseData(rtr)
+	if diff := cmp.Diff(out, out2); diff != "" {
+		t.Error(diff)
+	}
+})
+```
+
+**Fuzzing consume muchos recursos**
+
+Para ejecutar el fuzzer hacemos:
+
+```ps
+go test -fuzz=FuzzParseData
+```
+
+donde `FuzzParseData` es el nombre de nuestro caso de Fuzzer. Al ejecutar se creará en la carpeta `testdata\fuzz\[xxxxxx]` un juego de datos - archivo - por cada combinación que el Fuzzer ha detectado KO. `[xxxxxx]` es el nombre del caso de Fuzzer, ``FuzzParseData` en nuestro ejemplo. 
+
+Si ahora hicieramos 
+
+```ps
+ go test -run=FuzzParseData/
+```
+
+se ejecutarán, a modo de regresión, los casos que el fuzzer detecto como erróneos (usa el dato que se guardo en `testdata\fuzz\`).
+
+## Benchmarks
