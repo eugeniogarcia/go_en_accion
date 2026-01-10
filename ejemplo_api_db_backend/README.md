@@ -71,3 +71,51 @@ podemos ver una sección _database_ y varias propiedades definidas detro de ella
 ```go
 connectionString := config.GetString("database.connection_string")
 ```
+
+## instalación postgress en Ubuntu
+
+
+[Guia de instalación](https://documentation.ubuntu.com/server/how-to/databases/install-postgresql/)
+
+```sh
+sudo apt install postgresql postgresql-contrib
+```
+
+Por defecto, PostgreSQL crea un usuario llamado "postgres"
+
+sudo -u postgres psql
+ALTER USER postgres WITH PASSWORD 'prueba';
+CREATE USER egsmartin WITH PASSWORD 'prueba';
+CREATE DATABASE runners_db OWNER egsmartin;
+GRANT ALL PRIVILEGES ON DATABASE runners_db TO egsmartin;
+
+\q
+
+
+para instalar _pgadmin_, primero tenemos que configurar el repositorio:
+
+```sh
+# Install the public key for the repository (if not done previously):
+curl -fsS https://www.pgadmin.org/static/packages_pgadmin_org.pub | sudo gpg --dearmor -o /usr/share/keyrings/packages-pgadmin-org.gpg
+
+# Create the repository configuration file:
+sudo sh -c 'echo "deb [signed-by=/usr/share/keyrings/packages-pgadmin-org.gpg] https://ftp.postgresql.org/pub/pgadmin/pgadmin4/apt/$(lsb_release -cs) pgadmin4 main" > /etc/apt/sources.list.d/pgadmin4.list && apt update'
+```
+
+ahora ya podemos instalarlo:
+
+```sh
+sudo apt install pgadmin4
+```
+
+
+systemctl status postgresql
+systemctl restart postgresql
+sudo systemctl start postgresql
+sudo systemctl stop postgresql
+
+
+sudo systemctl enable postgresql
+sudo systemctl enable --now postgresql
+sudo systemctl disable postgresql
+sudo systemctl disable --now postgresql
