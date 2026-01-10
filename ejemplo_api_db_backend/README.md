@@ -241,10 +241,47 @@ Implementa la lógica de negocio. Todos aquellos accesos que se precisen a la ca
 
 ### Repositorio
 
-Implementa el acceso a datos.
+Implementa el acceso a datos. En la carpeta _Variantes_ tenemos ejemplos de implementación de la capa de datos con MySql, MongoDB y DynamoDB. Comentaré las pinceladas principales con la implementación de Postgres.
 
+En primer lugar comentar como se gestionan las transacciones. Como cada repositorio gestiona el acceso a una tabla y hay lógica de negocio que trabaja con ambas tablas lo que haremos es a) crear una transacción, b) guardarla en los dos repositorios, de modo que cuando los métodos del repositorio accedan a los datos lo hagan usando la transacción. La transacción se convierte así en un elemento transversal para las dos tablas. Para gestionar la transacción usamos estos tres métodos:
 
 ```go
+func BeginTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
+	// creamos un contexto para la transacción
+	ctx := context.Background()
+	// iniciamos la transacción
+	transaction, err := resultsRepository.dbHandler.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return err
+	}
+	// asignamos la transacción a ambos repositorios
+	runnersRepository.transaction = transaction
+	resultsRepository.transaction = transaction
+
+	return nil
+}
+
+func RollbackTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
+	// toma la transacción de uno de los repositorios (los dos tienen la misma transacción así que da igual cual utilicemos)
+	transaction := runnersRepository.transaction
+	// limpiamos la transacción en ambos repositorios
+	runnersRepository.transaction = nil
+	resultsRepository.transaction = nil
+	// hacemos el rollback
+	return transaction.Rollback()
+}
+
+func CommitTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
+	// toma la transacción de uno de los repositorios (los dos tienen la misma transacción así que da igual cual utilicemos)
+	transaction := runnersRepository.transaction
+
+	// limpiamos la transacción en ambos repositorios
+	runnersRepository.transaction = nil
+	resultsRepository.transaction = nil
+
+	// hacemos el commit
+	return transaction.Commit()
+}
 ```
 
 ```go
