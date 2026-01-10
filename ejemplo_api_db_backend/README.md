@@ -74,25 +74,29 @@ connectionString := config.GetString("database.connection_string")
 
 ## instalación postgress en Ubuntu
 
-
-[Guia de instalación](https://documentation.ubuntu.com/server/how-to/databases/install-postgresql/)
+[Guia de instalación](https://documentation.ubuntu.com/server/how-to/databases/install-postgresql/). Instalamos postgres:
 
 ```sh
 sudo apt install postgresql postgresql-contrib
 ```
 
-Por defecto, PostgreSQL crea un usuario llamado "postgres"
+Por defecto, PostgreSQL crea un usuario llamado "postgres". Podemos abrir una sesión de _psql_ para cambiar la contraseña del usuario, o para crear un nuevo usuario y/o base de datos:
 
+```sh
 sudo -u postgres psql
+```
+
+y luego en la sesión de psql:
+
+```psql
 ALTER USER postgres WITH PASSWORD 'prueba';
+
 CREATE USER egsmartin WITH PASSWORD 'prueba';
 CREATE DATABASE runners_db OWNER egsmartin;
 GRANT ALL PRIVILEGES ON DATABASE runners_db TO egsmartin;
+```
 
-\q
-
-
-para instalar _pgadmin_, primero tenemos que configurar el repositorio:
+salimos con `\q`. Para instalar _pgadmin_, primero tenemos que configurar el repositorio:
 
 ```sh
 # Install the public key for the repository (if not done previously):
@@ -108,14 +112,29 @@ ahora ya podemos instalarlo:
 sudo apt install pgadmin4
 ```
 
+### Servicio postgres
 
+Postgres se ejecuta como un servicio. Podemos operar el servicio con los siguientes comandos:
+
+```sh
 systemctl status postgresql
 systemctl restart postgresql
-sudo systemctl start postgresql
-sudo systemctl stop postgresql
+systemctl start postgresql
+systemctl stop postgresql
+```
 
+con esto vemos el estado del servicio, lo re-arrancamos, arrancamos o paramos. Podemos habilitar que el servicio se arranque automáticamente al arrancar el linux:
 
+```sh
 sudo systemctl enable postgresql
 sudo systemctl enable --now postgresql
+```
+
+o deshabilitarlo:
+
+```sh
 sudo systemctl disable postgresql
 sudo systemctl disable --now postgresql
+```
+
+con la opción `--now` hacemos que el cambio se haga de forma inmediata
