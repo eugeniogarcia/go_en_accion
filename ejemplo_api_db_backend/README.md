@@ -419,6 +419,13 @@ type Runner struct {
 }
 ```
 
+## Automatización de tests
+
+Se utiliza el paquete de tests para automatizar las pruebas. No hay nada especial salvo el uso de mocks para emular la base de datos - durante la ejecución de los tests.
+
+### Mocks de base de datos
+
+
 ```go
 ```
 

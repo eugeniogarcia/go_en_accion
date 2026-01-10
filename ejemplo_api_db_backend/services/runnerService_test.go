@@ -22,10 +22,11 @@ import (
 }*/
 
 func TestValidateRunner(t *testing.T) {
+	// crea una tabla de tests
 	tests := []struct {
-		name   string
-		runner *models.Runner
-		want   *models.ResponseError
+		name   string                // nombre del test
+		runner *models.Runner        // runner de entrada
+		want   *models.ResponseError // resultado esperado
 	}{
 		{
 			name: "Invalid_First_Name",
@@ -89,6 +90,7 @@ func TestValidateRunner(t *testing.T) {
 	}
 
 	for _, test := range tests {
+		// ejecuta cada test
 		t.Run(test.name, func(t *testing.T) {
 			responseErr := validateRunner(test.runner)
 			assert.Equal(t, test.want, responseErr)
