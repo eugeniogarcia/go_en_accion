@@ -5,7 +5,7 @@ import (
 	"runners-mysql/config"
 	"runners-mysql/server"
 
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/go-sql-driver/mysql" // MySQL driver
 )
 
 func main() {
