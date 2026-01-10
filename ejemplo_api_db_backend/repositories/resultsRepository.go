@@ -23,6 +23,7 @@ func (rr ResultsRepository) CreateResult(result *models.Result) (*models.Result,
 		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id`
 
+	// ejecutamos la query dentro de una transaccion (estamos cambiando datos)
 	rows, err := rr.transaction.Query(query, result.RunnerID, result.RaceResult, result.Location, result.Position, result.Year)
 	if err != nil {
 		return nil, &models.ResponseError{
@@ -31,10 +32,13 @@ func (rr ResultsRepository) CreateResult(result *models.Result) (*models.Result,
 		}
 	}
 
+	// aseguramos que se cierre el cursor
 	defer rows.Close()
 
 	var resultId string
+	// iteramos sobre el cursor
 	for rows.Next() {
+		// capturamos los datos recuperados con el cursor
 		err := rows.Scan(&resultId)
 		if err != nil {
 			return nil, &models.ResponseError{
@@ -44,6 +48,7 @@ func (rr ResultsRepository) CreateResult(result *models.Result) (*models.Result,
 		}
 	}
 
+	// si hubiera un error en la iteración del cursor
 	if rows.Err() != nil {
 		return nil, &models.ResponseError{
 			Message: err.Error(),
@@ -110,6 +115,7 @@ func (rr ResultsRepository) GetAllRunnersResults(runnerId string) ([]*models.Res
 	FROM results
 	WHERE runner_id = $1`
 
+	// ejecutamos la query (consulta)
 	rows, err := rr.dbHandler.Query(query, runnerId)
 	if err != nil {
 		return nil, &models.ResponseError{
@@ -118,13 +124,16 @@ func (rr ResultsRepository) GetAllRunnersResults(runnerId string) ([]*models.Res
 		}
 	}
 
+	// aseguramos que se cierre el cursor
 	defer rows.Close()
 
 	results := make([]*models.Result, 0)
 	var id, raceResult, location string
 	var position, year int
 
+	// iteramos sobre el cursor
 	for rows.Next() {
+		// capturamos los datos recuperados con el cursor
 		err := rows.Scan(&id, &raceResult, &location, &position, &year)
 		if err != nil {
 			return nil, &models.ResponseError{

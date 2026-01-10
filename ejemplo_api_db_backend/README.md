@@ -284,6 +284,141 @@ func CommitTransaction(runnersRepository *RunnersRepository, resultsRepository *
 }
 ```
 
+Abrir un cursor para leer datos:
+
+```go
+query := `
+SELECT id, race_result, location, position, year
+FROM results
+WHERE runner_id = $1`
+
+// ejecutamos la query (consulta)
+rows, err := rr.dbHandler.Query(query, runnerId)
+if err != nil {
+	return nil, &models.ResponseError{
+		Message: err.Error(),
+		Status:  http.StatusInternalServerError,
+	}
+}
+
+// aseguramos que se cierre el cursor
+defer rows.Close()
+
+results := make([]*models.Result, 0)
+var id, raceResult, location string
+var position, year int
+
+// iteramos sobre el cursor
+for rows.Next() {
+	// capturamos los datos recuperados con el cursor
+	err := rows.Scan(&id, &raceResult, &location, &position, &year)
+	if err != nil {
+		return nil, &models.ResponseError{
+			Message: err.Error(),
+			Status:  http.StatusInternalServerError,
+		}
+	}
+
+	result := &models.Result{
+		ID:         id,
+		RunnerID:   runnerId,
+		RaceResult: raceResult,
+		Location:   location,
+		Position:   position,
+		Year:       year,
+	}
+
+[...]
+```
+
+similar al caso anterior, pero utilizando una transacción:
+
+```go
+query := `
+	INSERT INTO results(runner_id, race_result, location, position, year)
+	VALUES ($1, $2, $3, $4, $5)
+	RETURNING id`
+
+// ejecutamos la query dentro de una transaccion (estamos cambiando datos)
+rows, err := rr.transaction.Query(query, result.RunnerID, result.RaceResult, result.Location, result.Position, result.Year)
+if err != nil {
+	return nil, &models.ResponseError{
+		Message: err.Error(),
+		Status:  http.StatusInternalServerError,
+	}
+}
+
+// aseguramos que se cierre el cursor
+defer rows.Close()
+
+var resultId string
+// iteramos sobre el cursor
+for rows.Next() {
+	// capturamos los datos recuperados con el cursor
+	err := rows.Scan(&resultId)
+	if err != nil {
+		return nil, &models.ResponseError{
+			Message: err.Error(),
+			Status:  http.StatusInternalServerError,
+		}
+	}
+}
+```
+
+ejecutamos una query sin cursor (con o sin transacción; En este caso es con transacción):
+
+```go
+query := `
+	UPDATE runners
+	SET
+		personal_best = $1,
+		season_best = $2
+	WHERE id = $3`
+
+//ejecutamos la query
+res, err := rr.transaction.Exec(query, runner.PersonalBest, runner.SeasonBest, runner.ID)
+if err != nil {
+	return &models.ResponseError{
+		Message: err.Error(),
+		Status:  http.StatusInternalServerError,
+	}
+}
+
+// vemos cuantas filas fueron afectadas
+rowsAffected, err := res.RowsAffected()
+if err != nil {
+	return &models.ResponseError{
+		Message: err.Error(),
+		Status:  http.StatusInternalServerError,
+	}
+}
+```
+
+## Modelo
+
+El payload que intercambiamos en las apis se modelará como una estructura indicando vía anotaciones como se mapeará al json correspondiente. Por ejemplo, en este caso filtramos el campo _Status_ e incluimos el campo _Message_ con el nombre _message_:
+
+```go
+type ResponseError struct {
+	Message string `json:"message"`
+	Status  int    `json:"-"` // El status no se incluye en la respuesta JSON - se informará en la cabecera http status code
+}
+```
+
+```go
+type Runner struct {
+	ID           string    `json:"id"`
+	FirstName    string    `json:"first_name"`
+	LastName     string    `json:"last_name"`
+	Age          int       `json:"age,omitempty"`
+	IsActive     bool      `json:"is_active"`
+	Country      string    `json:"country"`
+	PersonalBest string    `json:"personal_best,omitempty"` // se incluye el campo en el json solo si no es vacío
+	SeasonBest   string    `json:"season_best,omitempty"`   // se incluye el campo en el json solo si no es vacío
+	Results      []*Result `json:"results,omitempty"`       // se incluye el campo en el json solo si no es nulo o vacío
+}
+```
+
 ```go
 ```
 

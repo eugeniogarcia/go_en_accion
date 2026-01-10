@@ -72,6 +72,7 @@ func (rr RunnersRepository) UpdateRunner(runner *models.Runner) *models.Response
 			country = $4
 		WHERE id = $5`
 
+	//ejecutamos la query
 	res, err := rr.dbHandler.Exec(query, runner.FirstName, runner.LastName, runner.Age, runner.Country, runner.ID)
 	if err != nil {
 		return &models.ResponseError{
@@ -80,6 +81,7 @@ func (rr RunnersRepository) UpdateRunner(runner *models.Runner) *models.Response
 		}
 	}
 
+	// vemos cuantas filas fueron afectadas
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return &models.ResponseError{
@@ -106,6 +108,7 @@ func (rr RunnersRepository) UpdateRunnerResults(runner *models.Runner) *models.R
 			season_best = $2
 		WHERE id = $3`
 
+	//ejecutamos la query
 	res, err := rr.transaction.Exec(query, runner.PersonalBest, runner.SeasonBest, runner.ID)
 	if err != nil {
 		return &models.ResponseError{
@@ -114,6 +117,7 @@ func (rr RunnersRepository) UpdateRunnerResults(runner *models.Runner) *models.R
 		}
 	}
 
+	// vemos cuantas filas fueron afectadas
 	rowsAffected, err := res.RowsAffected()
 	if err != nil {
 		return &models.ResponseError{
