@@ -62,6 +62,7 @@ func (rc RunnersController) CreateRunner(ctx *gin.Context) {
 
 	response, responseErr := rc.runnersService.CreateRunner(&runner)
 	if responseErr != nil {
+		// responde con el http status code y el payload, y detiene la ejecución del handler
 		ctx.AbortWithStatusJSON(responseErr.Status, responseErr)
 		return
 	}
@@ -152,6 +153,7 @@ func (rc RunnersController) GetRunner(ctx *gin.Context) {
 		return
 	}
 
+	// path parameter
 	runnerId := ctx.Param("id")
 
 	response, responseErr := rc.runnersService.GetRunner(runnerId)
@@ -189,6 +191,7 @@ func (rc RunnersController) GetRunnersBatch(ctx *gin.Context) {
 		return
 	}
 
+	// obtenemos los query parameters
 	params := ctx.Request.URL.Query()
 	country := params.Get("country")
 	year := params.Get("year")

@@ -138,3 +138,120 @@ sudo systemctl disable --now postgresql
 ```
 
 con la opción `--now` hacemos que el cambio se haga de forma inmediata
+
+## api
+
+Para construir la api identificamos tres capas independientes con el objeto de separar _concerns_:
+
+- Controller. Esta capa proporciona las funciones que se asocian a los recursos de la api
+- Servicio. Esta capa implementa la lógica de negocio. La función del controller hará uso de las funciones de negocio implementadas en el servicio. El acceso a datos se abstrae en la siguiente capa, el repositorio
+- Repository. Implementa la lógica de acceso a datos. Se han considerado cuatro implementaciones alternativas:
+	- Usando Postgres
+	- Utilizando MySql
+	- Usando MongoDB
+	- utilizando DynamoDB
+
+La construcción del proxy la hacemos utilizando el paquete Gin. Con Gin definimos para cada recurso/método el controlador aosociado.
+
+La forma en la que se implementa cada capa es la misma:
+
+- Se usa una función factoría para crear una instancia del objeto (controller, servicio o repositorio)
+- La capa se modela con un struct que contiene todas las propiedades necesarias, así como los métodos necesarios para gestionar la capa
+
+### Controller
+
+Usamos Gin para implementar el router:
+
+```go
+// instancia el router de Gin...
+router := gin.Default()
+
+// ...y define las rutas y los controladores asociados
+router.POST("/runner", runnersController.CreateRunner)
+router.PUT("/runner", runnersController.UpdateRunner)
+router.DELETE("/runner/:id", runnersController.DeleteRunner)
+router.GET("/runner/:id", runnersController.GetRunner)
+router.GET("/runner", runnersController.GetRunnersBatch)
+
+router.POST("/result", resultsController.CreateResult)
+router.DELETE("/result/:id", resultsController.DeleteResult)
+
+router.POST("/login", usersController.Login)
+router.POST("/logout", usersController.Logout)
+```
+
+los métodos asociados a cada recurso son el controler. Estos métodos tienen la misma firma `CreateRunner(ctx *gin.Context) {`. El argumento es el contexto Gin. El contexto se usa para acceder a todos los elementos de la request (cabecera, payload, path parameters y query parameters). El contexto tambien sirve para crear la respuesta. Para ello proporciona diferentes métodos:
+
+```go
+// recuperamos una cabecera de la petición
+accessToken := ctx.Request.Header.Get("Token")
+
+// contruye una respuesta con el http status code y el payload
+ctx.JSON(responseErr.Status, responseErr)
+
+// responde con el http status code y un payload, y detiene la ejecución del handler
+ctx.AbortWithError(http.StatusInternalServerError, err)
+
+// responde con el http status code
+ctx.Status(http.StatusUnauthorized)
+
+// obtenemos los query parameters
+params := ctx.Request.URL.Query()
+country := params.Get("country")
+year := params.Get("year")
+
+// path parameter
+runnerId := ctx.Param("id")
+```
+
+hay que tener en cuenta que podemos encadenar varios métodos asociados a un recurso creando un pipeline. Cuando contestamos con un http status code/payload el pipeline continua con el siguiente elemento de la cadena. Sin embardo cuando contestamos con un _Abort_ el pipeline termina.
+
+Como comentamos antes el controller se crea con una factoría, y tiene tantos métodos como recursos tiene la api.
+
+```go
+// el controlador tiene como propiedades los servicios que va a utilizar
+type ResultsController struct {
+	resultsService *services.ResultsService
+	usersService   *services.UsersService
+}
+
+// factoria que crea el controlador
+func NewResultsController(resultsService *services.ResultsService,
+	userService *services.UsersService) *ResultsController {
+
+	return &ResultsController{
+		resultsService: resultsService,
+		usersService:   userService,
+	}
+}
+
+// los métodos de cada controler son los métodos que asociamos a los recursos de la api
+func (rc ResultsController) CreateResult(ctx *gin.Context) {
+[...]
+}
+
+func (rc ResultsController) DeleteResult(ctx *gin.Context) {
+[...]
+}
+```
+
+### Servicios
+
+Implementa la lógica de negocio. Todos aquellos accesos que se precisen a la capa de datos se implementan en la capa Repositorio
+
+### Repositorio
+
+Implementa el acceso a datos.
+
+
+```go
+```
+
+```go
+```
+
+```go
+```
+
+```go
+```

@@ -12,6 +12,7 @@ type ResultsService struct {
 	runnersRepository *repositories.RunnersRepository
 }
 
+// factoria que crea el servicio
 func NewResultsService(resultsRepository *repositories.ResultsRepository,
 	runnersRepository *repositories.RunnersRepository) *ResultsService {
 

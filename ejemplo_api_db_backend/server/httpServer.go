@@ -11,6 +11,7 @@ import (
 	"github.com/spf13/viper"
 )
 
+// Servidor HTTP que maneja las solicitudes entrantes
 type HttpServer struct {
 	config            *viper.Viper
 	router            *gin.Engine
@@ -20,18 +21,25 @@ type HttpServer struct {
 }
 
 func InitHttpServer(config *viper.Viper, dbHandler *sql.DB) HttpServer {
+	// Crea el repositorio
 	runnersRepository := repositories.NewRunnersRepository(dbHandler)
 	resultRepository := repositories.NewResultsRepository(dbHandler)
 	usersRepository := repositories.NewUsersRepository(dbHandler)
+
+	// Crea los servicios
 	runnersService := services.NewRunnersService(runnersRepository, resultRepository)
 	resultsService := services.NewResultsService(resultRepository, runnersRepository)
 	usersService := services.NewUsersService(usersRepository)
+
+	// Crea el controller
 	runnersController := controllers.NewRunnersController(runnersService, usersService)
 	resultsController := controllers.NewResultsController(resultsService, usersService)
 	usersController := controllers.NewUsersController(usersService)
 
+	// instancia el router de Gin...
 	router := gin.Default()
 
+	// ...y define las rutas y los controladores asociados
 	router.POST("/runner", runnersController.CreateRunner)
 	router.PUT("/runner", runnersController.UpdateRunner)
 	router.DELETE("/runner/:id", runnersController.DeleteRunner)
@@ -44,6 +52,7 @@ func InitHttpServer(config *viper.Viper, dbHandler *sql.DB) HttpServer {
 	router.POST("/login", usersController.Login)
 	router.POST("/logout", usersController.Logout)
 
+	// devuelve el servidor HTTP configurado
 	return HttpServer{
 		config:            config,
 		router:            router,
@@ -53,6 +62,7 @@ func InitHttpServer(config *viper.Viper, dbHandler *sql.DB) HttpServer {
 	}
 }
 
+// implementa el método Start para iniciar el servidor HTTP
 func (hs HttpServer) Start() {
 	err := hs.router.Run(hs.config.GetString("http.server_address"))
 	if err != nil {
