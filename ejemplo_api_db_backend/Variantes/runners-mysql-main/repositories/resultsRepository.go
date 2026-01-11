@@ -123,7 +123,7 @@ func (rr ResultsRepository) GetAllRunnersResults(runnerId string) ([]*models.Res
 
 	if rows.Err() != nil {
 		return nil, &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
@@ -161,7 +161,7 @@ func (rr ResultsRepository) GetPersonalBestResults(runnerId string) (string, *mo
 
 	if rows.Err() != nil {
 		return "", &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
@@ -199,7 +199,7 @@ func (rr ResultsRepository) GetSeasonBestResults(runnerId string, year int) (str
 
 	if rows.Err() != nil {
 		return "", &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
