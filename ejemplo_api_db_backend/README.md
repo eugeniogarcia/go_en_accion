@@ -419,6 +419,138 @@ type Runner struct {
 }
 ```
 
+## Base de datos
+
+Es interesante ver la definición del esquema de la base de datos. He incluido comentarios sobre las lineas del script. Como puntos destacables de este primer script:
+
+- Extensiones. Incluimos una extensión para poder usar el lenguaje plsql de postgres, y para generar _uuid_
+- Configuramos diferentes parametros en el esquema: timeouts, aspectos regionales
+- Definimos primary keys y foreing keys. Si usamos la vista _ERD_ en postgres podemos ver el modelo entidad relación resultante
+- Definimos varios índices
+- Se incluyen diferentes constrains en campos, así como valores por defecto (`NOT NULL`, `DEFAULT`)
+
+```sql
+-- No definimos ningún timeout para la ejecución de las sentencias, bloqueos o transacciones inactivas
+SET statement_timeout = 0;
+SET lock_timeout = 0;
+SET idle_in_transaction_session_timeout = 0;
+
+-- usamos el conjunto de caracteres UTF8
+SET client_encoding = 'UTF8';
+-- definimos la zona horaria por defecto como UTC
+SET timezone = 'UTC';
+-- definimos el formato de los números para que use el punto como separador decimal
+SET numeric_std = 'on';
+-- definimos el comportamiento de las comillas simples en las cadenas de texto  
+SET standard_conforming_strings = on;
+-- nivel de mensajes mínimos a mostrar
+SET client_min_messages = warning;
+-- desactivamos la seguridad a nivel de fila
+SET row_security = off;
+
+-- extensión que permite usar el lenguaje PL/pgSQL en funciones y triggers
+CREATE EXTENSION IF NOT EXISTS plpgsql WITH SCHEMA pg_catalog;
+-- extensión que se utiliza para generar UUIDs. Incluye el tipo uuid que usamos en las columnas id de las tablas runners y results
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA pg_catalog;
+
+SET search_path = public, pg_catalog;
+SET default_tablespace = '';
+
+-- runners
+CREATE TABLE runners (
+    id uuid NOT NULL DEFAULT uuid_generate_v1mc(), -- generamos un UUID basado en la dirección MAC del servidor y la fecha/hora actual
+    first_name text NOT NULL,
+    last_name text NOT NULL,
+    age integer,
+    is_active boolean DEFAULT TRUE,
+    country text NOT NULL,
+    personal_best interval,
+    season_best interval,
+    CONSTRAINT runners_pk PRIMARY KEY (id) -- definimos la clave principal de la tabla
+);
+
+CREATE INDEX runners_country
+ON runners (country); -- creamos un índice en la columna country para optimizar las consultas que filtren por país
+
+CREATE INDEX runners_season_best
+ON runners (season_best);
+
+-- results
+CREATE TABLE results (
+    id uuid NOT NULL DEFAULT uuid_generate_v1mc(), -- generamos un UUID basado en la dirección MAC del servidor y la fecha/hora actual
+    runner_id uuid NOT NULL,
+    race_result interval NOT NULL,
+    location text NOT NULL,
+    position integer,
+    year integer NOT NULL,
+    CONSTRAINT results_pk PRIMARY KEY (id), -- definimos la clave principal de la tabla
+    CONSTRAINT fk_results_runner_id FOREIGN KEY (runner_id) -- definimos una foreign key que referencia a la tabla runners. La columna runner_id de results referencia a la columna id de runners. Cuando se actualiza o elimina un registro en runners, no se realiza ninguna acción en results
+        REFERENCES runners (id) MATCH SIMPLE
+        ON UPDATE NO ACTION
+        ON DELETE NO ACTION
+);
+```
+
+en este otro script destacar:
+- Usamos la extensión que nos permite aplicar un salt y hashear. Si quisieramos crear usuarios desde el código go, tendríamos que usar una query del tipo `INSERT INTO users(username, user_password, user_role) VALUES ($1, crypt($2, gen_salt('bf')), $3)`
+
+```sql
+-- incluimos la extesión pgcrypto para hashear contraseñas
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA pg_catalog;
+
+CREATE TABLE users (
+    id uuid NOT NULL DEFAULT uuid_generate_v1mc(),
+    username text NOT NULL UNIQUE,
+    user_password text NOT NULL,
+    user_role text NOT NULL,
+    access_token text,
+    CONSTRAINT users_pk PRIMARY KEY (id) -- definimos la clave principal de la tabla
+);
+
+CREATE INDEX user_access_token
+ON users (access_token); -- creamos un índice en la columna access_token para optimizar las consultas que filtren por token de acceso
+
+-- La función gen_salt('bf') genera una sal aleatoria para el algoritmo Blowfish. Produce una salida diferente cada vez que se llama. La salida tiene la siguiente forma: $2a$<cost>$<22 character salt>, esto es, un identificador del alfgortimo que se ha usado ($2a$ corresponde al algoritmo blowfish), el coste de computación (cost) y el salt propiamente dicho (que tendra 22 caracteres de largo).
+-- La función crypt() toma dos argumentos: el valor a hashear  y la sal (salt). Del salt toma el algoritmo y la salt propiamente dicha para hashear el valor. El valor y la salt se combinan (es más complejo que una concatenación de ambos) y se aplica el algoritmo de hash especificado en la salt para producir el hash resultante. El resultado es una cadena que incluye el identificador del algoritmo, el coste, la salt y el hash resultante
+-- guardamos la contraseñas de los dos usuarios que hemos creado hasheadas con un salt y utilizando el algoritmo Blowfish
+INSERT INTO users(username, user_password, user_role)
+VALUES
+    ('admin', crypt('admin', gen_salt('bf')), 'admin'),
+    ('runner', crypt('runner', gen_salt('bf')), 'runner');
+```
+
+La función `crypt (arg1, arg2)` se utiliza para generar el hash, o más exactamente para generar algo que en _bcrypt_ tiene la siguiente pinta: `$2[aby]$CC$<22c-salt><31c-hash>`, o lo que es lo mismo, `$algoritmo$coste$salt$hash$`. El salt son exactamente 22 caracteres, y el hash 31.
+
+Lo que usa `crypt` del segundo argumento es el prefijo de algoritmo (`$2b$`), el coste y exactamente los 22 caracteres de salt. Lo que viene a continuación lo ignora
+
+```
+password=crypt('contraseña', gen_salt('bf'))
+password2=crypt('contraseña', password)
+
+entonces password2 y password son iguales
+```
+
+por este motivo en el repositorio para validar las credenciales de un usuario hacemos:
+
+```go
+func (ur UsersRepository) LoginUser(username string, password string) (string, *models.ResponseError) {
+	query := `
+		SELECT id
+		FROM users
+		WHERE username = $1 and user_password = crypt($2, user_password)`
+
+	rows, err := ur.dbHandler.Query(query, username, password)
+	if err != nil {
+		return "", &models.ResponseError{
+			Message: err.Error(),
+			Status:  http.StatusInternalServerError,
+		}
+	}
+```
+
+y para insertar haríamos `INSERT INTO users(username, user_password, user_role) VALUES ($1, crypt($2, gen_salt('bf')), $3)`
+
 ## Automatización de tests
 
 Se utiliza el paquete de tests para automatizar las pruebas. No hay nada especial salvo el uso de mocks para emular la base de datos - durante la ejecución de los tests.
