@@ -68,6 +68,7 @@ func (rs ResultsService) CreateResult(result *models.Result) (*models.Result, *m
 		}
 	}
 
+	// Inicia una trasacción
 	err = repositories.BeginTransaction(rs.runnersRepository, rs.resultsRepository)
 	if err != nil {
 		return nil, &models.ResponseError{
@@ -76,7 +77,9 @@ func (rs ResultsService) CreateResult(result *models.Result) (*models.Result, *m
 		}
 	}
 
+	// Crear el resultado
 	response, responseErr := rs.resultsRepository.CreateResult(result)
+	// Si hay un error, hacemos rollback y retornamos el error
 	if responseErr != nil {
 		repositories.RollbackTransaction(rs.runnersRepository, rs.resultsRepository)
 		return nil, responseErr
@@ -140,6 +143,7 @@ func (rs ResultsService) CreateResult(result *models.Result) (*models.Result, *m
 		return nil, responseErr
 	}
 
+	// Si hemos llegado hasta aquí, todo ha ido bien y hacemos commit
 	repositories.CommitTransaction(rs.runnersRepository, rs.resultsRepository)
 	return response, nil
 }

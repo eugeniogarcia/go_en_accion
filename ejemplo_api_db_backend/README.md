@@ -143,20 +143,35 @@ con la opción `--now` hacemos que el cambio se haga de forma inmediata
 
 Para construir la api identificamos tres capas independientes con el objeto de separar _concerns_:
 
-- Controller. Esta capa proporciona las funciones que se asocian a los recursos de la api
-- Servicio. Esta capa implementa la lógica de negocio. La función del controller hará uso de las funciones de negocio implementadas en el servicio. El acceso a datos se abstrae en la siguiente capa, el repositorio
-- Repository. Implementa la lógica de acceso a datos. Se han considerado cuatro implementaciones alternativas:
+- **Controller**. Esta capa proporciona las funciones que se asocian a los recursos de la api
+- **Servicio**. Esta capa implementa la lógica de negocio. La función del controller hará uso de las funciones de negocio implementadas en el servicio. El acceso a datos se abstrae en la siguiente capa, el repositorio
+- **Repository**. Implementa la lógica de acceso a datos. Se han considerado cuatro implementaciones alternativas:
 	- Usando Postgres
 	- Utilizando MySql
 	- Usando MongoDB
 	- utilizando DynamoDB
 
-La construcción del proxy la hacemos utilizando el paquete Gin. Con Gin definimos para cada recurso/método el controlador aosociado.
+La construcción del proxy la hacemos utilizando el paquete Gin. Con Gin definimos para cada recurso/método el controlador aosociado:
 
-La forma en la que se implementa cada capa es la misma:
+```go
+// instancia el router de Gin...
+router := gin.Default()
 
-- Se usa una función factoría para crear una instancia del objeto (controller, servicio o repositorio)
-- La capa se modela con un struct que contiene todas las propiedades necesarias, así como los métodos necesarios para gestionar la capa
+// ...y define las rutas y los controladores asociados
+router.POST("/runner", runnersController.CreateRunner)
+router.PUT("/runner", runnersController.UpdateRunner)
+router.DELETE("/runner/:id", runnersController.DeleteRunner)
+router.GET("/runner/:id", runnersController.GetRunner)
+
+[...]
+```
+
+una vez creado y configurado el router, para empezar a atender peticiones hacemos `router.Run([direccion de escucha])`. En cada ruta estamos indicando una función. Esas funciones estan definidas en la capa controller.
+
+La forma en la que se implementa cada capa (controller, servicio, repositorio) es la misma:
+
+- Se usa una **función factoría** para crear una instancia del objeto (controller, servicio o repositorio). `func NewXXXXX([parametros]) *XXXXX {...}`
+- La capa se modela con un struct que contiene todas las propiedades necesarias, así como los métodos necesarios para gestionar la capa (en el ejemplo anterior, el struct sería `XXXXX`)
 
 ### Controller
 
@@ -243,48 +258,7 @@ Implementa la lógica de negocio. Todos aquellos accesos que se precisen a la ca
 
 Implementa el acceso a datos. En la carpeta _Variantes_ tenemos ejemplos de implementación de la capa de datos con MySql, MongoDB y DynamoDB. Comentaré las pinceladas principales con la implementación de Postgres.
 
-En primer lugar comentar como se gestionan las transacciones. Como cada repositorio gestiona el acceso a una tabla y hay lógica de negocio que trabaja con ambas tablas lo que haremos es a) crear una transacción, b) guardarla en los dos repositorios, de modo que cuando los métodos del repositorio accedan a los datos lo hagan usando la transacción. La transacción se convierte así en un elemento transversal para las dos tablas. Para gestionar la transacción usamos estos tres métodos:
-
-```go
-func BeginTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
-	// creamos un contexto para la transacción
-	ctx := context.Background()
-	// iniciamos la transacción
-	transaction, err := resultsRepository.dbHandler.BeginTx(ctx, &sql.TxOptions{})
-	if err != nil {
-		return err
-	}
-	// asignamos la transacción a ambos repositorios
-	runnersRepository.transaction = transaction
-	resultsRepository.transaction = transaction
-
-	return nil
-}
-
-func RollbackTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
-	// toma la transacción de uno de los repositorios (los dos tienen la misma transacción así que da igual cual utilicemos)
-	transaction := runnersRepository.transaction
-	// limpiamos la transacción en ambos repositorios
-	runnersRepository.transaction = nil
-	resultsRepository.transaction = nil
-	// hacemos el rollback
-	return transaction.Rollback()
-}
-
-func CommitTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
-	// toma la transacción de uno de los repositorios (los dos tienen la misma transacción así que da igual cual utilicemos)
-	transaction := runnersRepository.transaction
-
-	// limpiamos la transacción en ambos repositorios
-	runnersRepository.transaction = nil
-	resultsRepository.transaction = nil
-
-	// hacemos el commit
-	return transaction.Commit()
-}
-```
-
-Abrir un cursor para leer datos:
+- **Abrir un cursor para leer datos**:
 
 ```go
 query := `
@@ -331,7 +305,7 @@ for rows.Next() {
 [...]
 ```
 
-similar al caso anterior, pero utilizando una transacción:
+similar al caso anterior, pero **utilizando una transacción**:
 
 ```go
 query := `
@@ -365,7 +339,7 @@ for rows.Next() {
 }
 ```
 
-ejecutamos una query sin cursor (con o sin transacción; En este caso es con transacción):
+- **ejecutamos una query sin cursor** (con o sin transacción; En este caso es con transacción):
 
 ```go
 query := `
@@ -392,6 +366,91 @@ if err != nil {
 		Status:  http.StatusInternalServerError,
 	}
 }
+```
+
+**Hay que destacar que cuando usamos la conexión a bases de datos relacionales, los métodos son los mismos independientemente del driver que usemos (podemos ver en la variante MySql como en el repositorio el acceso se hace igual que en el caso de Postgres)**.
+
+
+### Transacciones
+
+En primer lugar comentar como se gestionan las transacciones. Como cada repositorio gestiona el acceso a una tabla y hay lógica de negocio que trabaja con ambas tablas lo que haremos es a) crear una transacción, b) guardarla en los dos repositorios, de modo que cuando los métodos del repositorio accedan a los datos lo hagan usando la transacción. La transacción se convierte así en un elemento transversal para las dos tablas. Para gestionar la transacción usamos estos tres métodos:
+
+```go
+func BeginTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
+	// creamos un contexto para la transacción
+	ctx := context.Background()
+	// iniciamos la transacción
+	transaction, err := resultsRepository.dbHandler.BeginTx(ctx, &sql.TxOptions{})
+	if err != nil {
+		return err
+	}
+	// asignamos la transacción a ambos repositorios
+	runnersRepository.transaction = transaction
+	resultsRepository.transaction = transaction
+
+	return nil
+}
+
+func RollbackTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
+	// toma la transacción de uno de los repositorios (los dos tienen la misma transacción así que da igual cual utilicemos)
+	transaction := runnersRepository.transaction
+	// limpiamos la transacción en ambos repositorios
+	runnersRepository.transaction = nil
+	resultsRepository.transaction = nil
+	// hacemos el rollback
+	return transaction.Rollback()
+}
+
+func CommitTransaction(runnersRepository *RunnersRepository, resultsRepository *ResultsRepository) error {
+	// toma la transacción de uno de los repositorios (los dos tienen la misma transacción así que da igual cual utilicemos)
+	transaction := runnersRepository.transaction
+
+	// limpiamos la transacción en ambos repositorios
+	runnersRepository.transaction = nil
+	resultsRepository.transaction = nil
+
+	// hacemos el commit
+	return transaction.Commit()
+}
+```
+
+en los repositorios se usará la transacción o directamente la conexión a la base de datos dependiendo de si queremos o no trabajar con transacciones:
+
+```go
+rr.transaction.Query(query, [argumentos])
+```
+
+```go
+rr.dbHandler.Query(query, [argumentos])
+```
+
+donde se gestiona la transacción es en la capa superior a la de repositorio, es decir, en la capa de servicio. 
+
+```go
+// Inicia una trasacción
+err = repositories.BeginTransaction(rs.runnersRepository, rs.resultsRepository)
+if err != nil {
+	return nil, &models.ResponseError{
+		Message: "Failed to start transaction",
+		Status:  http.StatusBadRequest,
+	}
+}
+
+[...]
+
+// Crear el resultado
+response, responseErr := rs.resultsRepository.CreateResult(result)
+// Si hay un error, hacemos rollback y retornamos el error
+if responseErr != nil {
+	repositories.RollbackTransaction(rs.runnersRepository, rs.resultsRepository)
+	return nil, responseErr
+}
+
+[...]
+
+// Si hemos llegado hasta aquí, todo ha ido bien y hacemos commit
+repositories.CommitTransaction(rs.runnersRepository, rs.resultsRepository)
+return response, nil
 ```
 
 ## Modelo
@@ -551,6 +610,14 @@ func (ur UsersRepository) LoginUser(username string, password string) (string, *
 
 y para insertar haríamos `INSERT INTO users(username, user_password, user_role) VALUES ($1, crypt($2, gen_salt('bf')), $3)`
 
+## Seguridad
+
+
+revisar controladores de runners y results
+revisar generacion del token
+revisar autorización y autenticación
+
+
 ## Automatización de tests
 
 Se utiliza el paquete de tests para automatizar las pruebas. No hay nada especial salvo el uso de mocks para emular la base de datos - durante la ejecución de los tests.
@@ -566,3 +633,4 @@ Se utiliza el paquete de tests para automatizar las pruebas. No hay nada especia
 
 ```go
 ```
+

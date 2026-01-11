@@ -45,7 +45,7 @@ func (ur UsersRepository) LoginUser(username string, password string) (string, *
 
 	if rows.Err() != nil {
 		return "", &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
@@ -82,7 +82,7 @@ func (ur UsersRepository) GetUserRole(accessToken string) (string, *models.Respo
 
 	if rows.Err() != nil {
 		return "", &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}

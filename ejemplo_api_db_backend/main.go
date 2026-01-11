@@ -25,7 +25,7 @@ func main() {
 	go server.InitPrometheus()
 
 	log.Println("Initializig HTTP sever")
-	// inicializamos el servidor HTTP donde exponemos los diferentes recursos y  las apis asociadas a ellos
+	// inicializamos el servidor HTTP donde exponemos los diferentes recursos y  las apis asociadas a ellos. Pasamos la configuración y la base de datos
 	httpServer := server.InitHttpServer(config, dbHandler)
 
 	// arrancamos el servidor HTTP

@@ -8,7 +8,7 @@ import (
 
 type ResultsRepository struct {
 	dbHandler   *sql.DB
-	transaction *sql.Tx
+	transaction *sql.Tx // Se usa para las operaciones de actualización que requieren ejecutarse dentro de una transacción
 }
 
 func NewResultsRepository(dbHAndler *sql.DB) *ResultsRepository {
@@ -51,7 +51,7 @@ func (rr ResultsRepository) CreateResult(result *models.Result) (*models.Result,
 	// si hubiera un error en la iteración del cursor
 	if rows.Err() != nil {
 		return nil, &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
@@ -96,7 +96,7 @@ func (rr ResultsRepository) DeleteResult(resultId string) (*models.Result, *mode
 
 	if rows.Err() != nil {
 		return nil, &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
@@ -156,7 +156,7 @@ func (rr ResultsRepository) GetAllRunnersResults(runnerId string) ([]*models.Res
 
 	if rows.Err() != nil {
 		return nil, &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
@@ -194,7 +194,7 @@ func (rr ResultsRepository) GetPersonalBestResults(runnerId string) (string, *mo
 
 	if rows.Err() != nil {
 		return "", &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}
@@ -232,7 +232,7 @@ func (rr ResultsRepository) GetSeasonBestResults(runnerId string, year int) (str
 
 	if rows.Err() != nil {
 		return "", &models.ResponseError{
-			Message: err.Error(),
+			Message: rows.Err().Error(),
 			Status:  http.StatusInternalServerError,
 		}
 	}

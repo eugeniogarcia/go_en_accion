@@ -62,8 +62,9 @@ func InitHttpServer(config *viper.Viper, dbHandler *sql.DB) HttpServer {
 	}
 }
 
-// implementa el método Start para iniciar el servidor HTTP
+// implementa el método Start para el apigateway HTTP (router de Gin)
 func (hs HttpServer) Start() {
+	// arrancar significa arrancar el router en la dirección indicada en la configuración. Si en la configuración solo especificamos el puerto (por ejemplo, ":8080"), el servidor escuchará en todas las interfaces de red disponibles.
 	err := hs.router.Run(hs.config.GetString("http.server_address"))
 	if err != nil {
 		log.Fatalf("Error while starting HTTP server: %v", err)
