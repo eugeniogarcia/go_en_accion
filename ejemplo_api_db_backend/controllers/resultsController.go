@@ -32,6 +32,7 @@ func (rc ResultsController) CreateResult(ctx *gin.Context) {
 	// recuperamos una cabecera de la petición
 	accessToken := ctx.Request.Header.Get("Token")
 
+	// verificamos que el token tenga asociado el role ROLE_ADMIN
 	auth, responseErr := rc.usersService.AuthorizeUser(accessToken, []string{ROLE_ADMIN})
 	if responseErr != nil {
 		// contruye una respuesta con el http status code y el payload

@@ -612,11 +612,35 @@ y para insertar haríamos `INSERT INTO users(username, user_password, user_role)
 
 ## Seguridad
 
+Vamos a dotar la aplicación de capacidades de autenticación y autorización. Para implementar la autenticación creamos una tabla users en la que guardaremos el user y password - asi como el rol asociado. En el apartado de Base de Datos se ha comentado ya, la contraseña se guarda en la tabla usando su hash salteado. Usamos el propio motor de base de datos para calcular el salt y el hash, así que en el código go simplemente trabajaremos con la contraseña en claro.
 
-revisar controladores de runners y results
-revisar generacion del token
-revisar autorización y autenticación
+Complementamos la tabla con un controller (que proporciona las funciones que asociaremos al recurso `login` y al recurso `logout`), y un servicio que implementa la lógica correspondiente al login y logout. El servicio login toma las credenciales de la cabecera de autenticación básica, comprueba que las credenciales sean válidas - que coinciden con el usuario y contraseña que tenemos guardada en la base de datos), y en caso afirmativo crea un token de acceso (usando bcrypt) que guarda en la base de datos y se devuelve como resultado del login. El logout lo que hace es tomar un token de acceso de la cabecera, lo busca en la base de datos y lo borra.
 
+Con esto tenemos implementado el mecanismo de autenticación que valida las credenciales y en caso de ser correctas genera un token de acceso.
+
+El mecanismo de autorización lo implementamos en los controladores. El controlador tomaá el token de acceso de la cabecera, lo busca en la base de datos, y recupera los roles que ese token tenga asociados. Una vez recuperados se verifica si el rol asociado es "suficiente" para ejecutar el controlador. 
+
+```go
+func (rc ResultsController) CreateResult(ctx *gin.Context) {
+	// recuperamos una cabecera de la petición
+	accessToken := ctx.Request.Header.Get("Token")
+
+	// verificamos que el token tenga asociado el role ROLE_ADMIN
+	auth, responseErr := rc.usersService.AuthorizeUser(accessToken, []string{ROLE_ADMIN})
+	if responseErr != nil {
+		// contruye una respuesta con el http status code y el payload
+		ctx.JSON(responseErr.Status, responseErr)
+		return
+	}
+
+	if !auth {
+		// responde con el http status code
+		ctx.Status(http.StatusUnauthorized)
+		return
+	}
+
+	[...]
+```
 
 ## Automatización de tests
 

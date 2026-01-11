@@ -20,6 +20,7 @@ func NewUsersService(usersRepository *repositories.UsersRepository) *UsersServic
 }
 
 func (us UsersService) Login(username string, password string) (string, *models.ResponseError) {
+	// Validaciones
 	if username == "" || password == "" {
 		return "", &models.ResponseError{
 			Message: "Invalid username or password",
@@ -27,6 +28,7 @@ func (us UsersService) Login(username string, password string) (string, *models.
 		}
 	}
 
+	// Comprueba si el usuario y contraseña los tenemos en la base de datos, y si los tenemos obtenemos su id
 	id, responseErr := us.usersRepository.LoginUser(username, password)
 	if responseErr != nil {
 		return "", responseErr
@@ -39,11 +41,12 @@ func (us UsersService) Login(username string, password string) (string, *models.
 		}
 	}
 
+	// Crea un token de acceso para el usuario
 	accessToken, responseErr := generateAccessToken(username)
 	if responseErr != nil {
 		return "", responseErr
 	}
-
+	// Guarda el token de acceso en la base de datos asociado al usuario
 	us.usersRepository.SetAccessToken(accessToken, id)
 
 	return accessToken, nil
@@ -56,7 +59,7 @@ func (us UsersService) Logout(accessToken string) *models.ResponseError {
 			Status:  http.StatusBadRequest,
 		}
 	}
-
+	// Elimina el token de acceso de la base de datos
 	return us.usersRepository.RemoveAccessToken(accessToken)
 }
 
@@ -90,6 +93,7 @@ func (us UsersService) AuthorizeUser(accessToken string, expectedRoles []string)
 }
 
 func generateAccessToken(username string) (string, *models.ResponseError) {
+	// Creamos un token a partir del nombre de usuario. En la generación del token se utiliza el timestamp
 	hash, err := bcrypt.GenerateFromPassword([]byte(username), bcrypt.DefaultCost)
 	if err != nil {
 		return "", &models.ResponseError{
@@ -97,6 +101,6 @@ func generateAccessToken(username string) (string, *models.ResponseError) {
 			Status:  http.StatusInternalServerError,
 		}
 	}
-
+	// codifica el token en base64 para que sea seguro para su transmisión
 	return base64.StdEncoding.EncodeToString(hash), nil
 }

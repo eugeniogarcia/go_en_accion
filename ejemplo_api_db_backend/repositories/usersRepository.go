@@ -91,6 +91,7 @@ func (ur UsersRepository) GetUserRole(accessToken string) (string, *models.Respo
 }
 
 func (ur UsersRepository) SetAccessToken(accessToken string, id string) *models.ResponseError {
+	// guarda el token en la base de datos para el usuario
 	query := `UPDATE users SET access_token = $1 WHERE id = $2`
 
 	_, err := ur.dbHandler.Exec(query, accessToken, id)
