@@ -646,7 +646,51 @@ func (rc ResultsController) CreateResult(ctx *gin.Context) {
 
 Se utiliza el paquete de tests para automatizar las pruebas. No hay nada especial salvo el uso de mocks para emular la base de datos - durante la ejecución de los tests.
 
+Para ejecutar los test de un determinado directorio. Aquí se estarían ejecutando todos los tests definidos en el directorio actual (_vervose_):
+
+```ps
+go test -v
+```
+
+si queremos ejecutar todos los tests incluidos en sub-directorios del raiz:
+
+```ps
+go test -v ./…
+```
+
+ejecuta todos los test incluidos en el directorio `services`:
+
+```ps
+go test -v ./services
+```
+
+si queremos analizar también la cobertura de código de los tests ejecutados tenemos dos flags, `-cover` y `coverpkg`. El primer flag verifica la cobertura local (esto es la cobertura que suponen los tests sobre el paquete que se está probando), el segundo es global (la cobertura del código independientemente del paquete que se esté probando). Si desde el directorio raiz hacemos:
+
+```ps
+go test -v -cover ./services
+```
+
+se ejecutan los tests definidos en el directorio `services` y la cobertura sobre el código definido en `services`. Si hacemos
+
+```ps
+go test -v -coverpkg=./... ./services
+```
+
+se ejecutan los tests definidos en el directorio `services` y la cobertura sobre todos los paquetes (si por ejemplo se importa en el código otros paquetes, se incluyen en el % de cobertura). Con `coverpkg` es necesario indicar el directorio/patrón que sobre el que se aplicará la cobertura, independientemente del directorio/patrón sobre el que se apliquen los tests. Con `-coverprofile=[nombre fichero]` hacemos que el resultado de los tests no salga por pantalla sino que se diija a un fichero
+
+```ps
+go test -v -coverpkg=./… ./… -coverprofile=coverage.out
+```
+
+podemos visualizar la cobertura con 
+
+```ps
+go tool cover -html=coverage.out
+```
+
 ### Mocks de base de datos
+
+Usamos el paquete `github.com/DATA-DOG/go-sqlmock` para definir un mock para la base de datos. El método `dbHandler, mock, error := sqlmock.New()` crea una conexión mock a la base de datos, nos devuelve un objeto con el que definir el mock, y el error.
 
 
 ```go
