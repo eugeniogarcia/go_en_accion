@@ -692,6 +692,7 @@ go tool cover -html=coverage.out
 
 Usamos el paquete `github.com/DATA-DOG/go-sqlmock` para definir un mock para la base de datos. El método `dbHandler, mock, error := sqlmock.New()` crea una conexión mock a la base de datos, nos devuelve un objeto con el que definir el mock, y el error.
 
+[ejemplo de middleware](../Learning%20Go/ch13%20libreria%20estandard/middleware/main.go)
 
 ```go
 ```

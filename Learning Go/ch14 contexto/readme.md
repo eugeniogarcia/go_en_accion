@@ -1,11 +1,13 @@
 El contexto nos permite compartir datos entre diferentes gorutinas. El contexto esta definido como un interface:
 
+```go
 type Context interface {
 	Deadline() (deadline time.Time, ok bool)
 	Done() <-chan struct{}
 	Err() error
 	Value(key any) any
 }
+```
 
 En el contexto podemos guardar key-values. Los key y los values serán de tipo `any` (`any` es una interface definida como `type any = interface{}`, de modo que cualquier tipo la _implementa_). Recuperamos el valor de un key usando el método `Value`.
 
