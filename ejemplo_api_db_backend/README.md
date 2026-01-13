@@ -646,6 +646,8 @@ func (rc ResultsController) CreateResult(ctx *gin.Context) {
 
 Se utiliza el paquete de tests para automatizar las pruebas. No hay nada especial salvo el uso de mocks para emular la base de datos - durante la ejecución de los tests.
 
+### comandos
+
 Para ejecutar los test de un determinado directorio. Aquí se estarían ejecutando todos los tests definidos en el directorio actual (_vervose_):
 
 ```ps
@@ -692,14 +694,66 @@ go tool cover -html=coverage.out
 
 Usamos el paquete `github.com/DATA-DOG/go-sqlmock` para definir un mock para la base de datos. El método `dbHandler, mock, error := sqlmock.New()` crea una conexión mock a la base de datos, nos devuelve un objeto con el que definir el mock, y el error.
 
-[ejemplo de middleware](../Learning%20Go/ch13%20libreria%20estandard/middleware/main.go)
+- Creamos la conexión _mockeada_ y un _mock_:
 
 ```go
+// usa sqlmock para crear una conexión a la base de datos, y el objeto mock
+dbHandler, mock, _ := sqlmock.New()
+// aseguramos que al final se cierre la conexión a la base de datos
+defer dbHandler.Close()
 ```
+
+- Con el mock definimos los casos a simular. Para cada caso tenemos que indicar la query (o parte de la query. Por ejemplo en este caso un select para recuperar el `user_role`; Podemos ver que la query no está escrita completamente, apenas tener un extracto de ella). Se indican las columnas que se deben recuperar, y los datos:
 
 ```go
+// usamos mock para definir un mock. Indicamos las columnas que queremos que nos devuelva el mock...
+columnsUsers := []string{"user_role"}
+//...indicamos que query tiene que se mockeada, que columnas se tienen que devolver, y los valores - una sola final
+mock.ExpectQuery("SELECT user_role").WillReturnRows(
+	sqlmock.NewRows(columnsUsers).AddRow("runner"),
+)
 ```
+
+otro ejemplo:
 
 ```go
+// definimos otro mock para un select *; Indicamos las columnas que tiene que devolver el mock, y los valores - dos filas
+columns := []string{"id", "first_name", "last_name", "age", "is_active", "country", "personal_best", "season_best"}
+mock.ExpectQuery("SELECT *").WillReturnRows(
+	sqlmock.NewRows(columns).
+		AddRow("1", "John", "Smith", 30, true, "United States", "02:00:41", "02:13:13").
+		AddRow("2", "Marijana", "Komatinovic", 30, true, "Serbia", "01:18:28", "01:18:28"))
 ```
 
+- Con esto, si ahora creamos el controlador usando la conexión a base de datos mockeada, cuando llegue el controller llame a alguna función de la capa de servicios, y está llame a alguna función de la capa repositorio, cuando la función del repositorio haga un `select * from runners" no se consultará la base de datos real sino la mockeada, se buscará entre los casos que hemos definido, y recuperar los datos definidos en el caso.
+
+```go
+// definimos el router, usando la conexión a la base de datos mockeada
+router := initTestRouter(dbHandler)
+```
+
+En este punto combiene enteder que es un ruter y como se utilizan los http handlers en el contexto de un servidor http. Es combeniente repasar el [ejemplo de middleware](../Learning%20Go/ch13%20libreria%20estandard/middleware/main.go).
+
+el `router` de Gin es un http handler que como tal puede usarse para gestionar peticiones http en un servidor http. El handler http incluye un método `ServeHTTP([http writer], [http request])`. Típicamente no vemos la llamada a este método, cuando hacemos `router.Run` con un router Gin, o `ListenAndServe()` con un servidor http clásico, se invoca bajo bambalinas a este método. El primer argumento es el mecanismo por el que se prepara la respuesta y se responde vía http. Si estamos en modo test podemos usar un http especial, `httptest.NewRecorder()`: 
+
+```go
+// El recorder implementa http.ResponseWriter y nos permite capturar lo que el handler escribe en la response
+recorder := httptest.NewRecorder()
+
+// usamos el http handler de router para probar. Como http writer usamos un recorder, y como request la request que hemos creado, Pasamos el request al handler
+router.ServeHTTP(recorder, request)
+```
+
+con esto estamos simulando la recepción y gestion de una petición http, y en `recorder` podremos ver la respuesta que el router ha proporcionado:
+
+```go
+// comprueba el status code de la respuesta
+assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
+
+// comprueba el body de la respuesta
+var runers []*models.Runner
+json.Unmarshal(recorder.Body.Bytes(), &runers)
+
+assert.NotEmpty(t, runers)
+assert.Equal(t, 2, len(runers))
+```

@@ -49,8 +49,10 @@ func TestGetRunnersResponse(t *testing.T) {
 	// usamos el http handler de router para probar. Como http writer usamos un recorder, y como request la request que hemos creado, Pasamos el request al handler
 	router.ServeHTTP(recorder, request)
 
+	// comprueba el status code de la respuesta
 	assert.Equal(t, http.StatusOK, recorder.Result().StatusCode)
 
+	// comprueba el body de la respuesta
 	var runers []*models.Runner
 	json.Unmarshal(recorder.Body.Bytes(), &runers)
 
