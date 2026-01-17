@@ -1,21 +1,24 @@
+# imagen base, con Go y Alpine Linux
 # Start from golang alpine base image
 FROM golang:1.25-alpine
 
-# Set the Current Working Directory inside the container
+# Creamos el directorio de trabajo en la imagen
 WORKDIR /app
 
-# Copy the source code to the Working Directory inside the container
+# copiamos todo al directorio de trabajo
 COPY . .
 
-# Download all dependencies.
-# Dependencies will be cached if the go.mod and go.sum files are not changed
+# descargamos las dependencias
 RUN go mod download
 
-# Build the Go app
+# construimos la aplicación
 RUN go build -o runners-app main.go
 
-# Export necessary ports
+# exponemos el puerto 8080
 EXPOSE 8080
 
-# Command to run when starting the container
+# definimos una variable de entorno llamada ENV con el valor k8s
+ENV ENV=k8s
+
+# Comando para ejecutar cuando se inicie el contenedor
 CMD ["/app/runners-app"]

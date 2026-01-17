@@ -757,3 +757,104 @@ json.Unmarshal(recorder.Body.Bytes(), &runers)
 assert.NotEmpty(t, runers)
 assert.Equal(t, 2, len(runers))
 ```
+
+## docker
+
+informacion de docker y de la máquina donde corre docker:
+
+```ps
+docker version
+
+docker info
+```
+
+información de los contenedores que están corriendo y de las imagenes disponibles:
+
+```
+docker ps
+
+docker images
+```
+
+descargar una imagen desde un repositorio, borrar una imagen, arrancar y parar un contenedor, y borrar un contenedor:
+
+```ps
+docker_pull image_name:tag
+
+docker rmi image_name:tag
+
+docker start container_name
+
+docker stop container_name
+
+docker rm container_name
+```
+
+construir una imagen:
+
+```
+docker build -f name_of_dockerfile path_to_dockerfile
+-t image_name:tag
+```
+
+para construir nuestra imagen hacemos:
+
+```ps
+docker build -f .\Dockerfile .\ -t runners-app
+```
+
+nuestro dockerfile:
+
+```dockerfile
+# imagen base, con Go y Alpine Linux
+# Start from golang alpine base image
+FROM golang:1.25-alpine
+
+# Creamos el directorio de trabajo en la imagen
+WORKDIR /app
+
+# copiamos todo al directorio de trabajo
+COPY . .
+
+# descargamos las dependencias
+RUN go mod download
+
+# construimos la aplicación
+RUN go build -o runners-app main.go
+
+# exponemos el puerto 8080
+EXPOSE 8080
+
+# Comando para ejecutar cuando se inicie el contenedor
+CMD ["/app/runners-app"]
+```
+
+la arrancamos:
+
+```ps
+docker run -p 8080:8080 runners-app
+```
+
+La aplicación se ejecuta dentro de un contenedor Docker mientras que la base de datos está en la máquina local. En Linux podemos hacer que el contenedor comparta el mismo espacio de direcciones que el host utilizando el `host networking mode`:
+
+```ps
+docker run --network host -p 8080:8080 runners-app
+```
+
+esto solo funciona en Linux. En windows lo que se crea es una entrada en la resolución de nombres del contenedor que apunta al host: `host.docker.internal`. De este modo cuando queremos conectarnos con el postgress que tenemos instalado en el host tendremos que referirnos a `host.docker.internal` en lugar de a `localhost`. Podemos incluir la variable de entorno en el _dockerfile_ haciendo incluyendo una línea `ENV ENV=k8s`, o podemos pasar la variable de entorno al arrancar:
+
+```ps
+docker run -p 8080:8080 -e ENV=k8s runners-app
+```
+
+podemos arrancar el contenedor _detachado_ (notese que hemos indicado el nombre de la imagen):
+
+```ps
+docker run -d --name mi-app -p 8080:8080 -e ENV=k8s runners-app
+```
+
+podemos ver los logs:
+
+```ps
+docker logs mi-app
+```
