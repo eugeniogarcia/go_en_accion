@@ -858,3 +858,133 @@ podemos ver los logs:
 ```ps
 docker logs mi-app
 ```
+
+### Optimizacion de la imagen
+
+Podemos mejorar la imagen que hemos creado, tanto en el espacio y recursos que emplean como en el perfil de ataque que expone. Vamos a usar un pipeline en el que utilizamos una imagen para construir la salida que necesitamos, y una segunda imagen, la final, en la que copiaremos el resultado
+
+```dockerfile
+########################################
+# Etapa 1: Build (builder)
+########################################
+# Imagen base con Go (Alpine, musl). Rápida y pequeña
+FROM golang:1.25-alpine AS imagen_constructora
+
+# Herramientas necesarias (git para módulos privados si aplica)
+RUN apk add --no-cache git ca-certificates
+
+# creamos el directorio de trabajo
+WORKDIR /src
+
+# no copiamos toda la aplicación todavía. Copiamos aquellas partes menos susceptibles a cambios, de modo que es más improbable que esta capa tenga que reconstruirse a menudo. Esto optimiza el uso de la caché de Docker y mejora los tiempos de construcción.
+# Optimiza caché de módulos copiando primero los manifests
+COPY go.mod go.sum ./
+
+# Descarga dependencias
+RUN go mod download
+
+# Ahora ya copiamos el resto del código
+COPY . .
+
+# Variables para cross-compilación y binario estático
+ARG TARGETOS=linux
+ARG TARGETARCH=amd64
+ENV CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH
+
+# Compila el binario, reduciendo tamaño
+RUN go build -trimpath -ldflags "-s -w" -o /out/runners-app ./main.go
+
+
+########################################
+# Etapa 2: Runtime (mínimo, no-root)
+########################################
+# Distroless estático, seguro y muy pequeño (sin shell)
+FROM gcr.io/distroless/static:nonroot
+
+# Creamos directorio de aplicación
+WORKDIR /app
+
+# Copiamos binario
+COPY --from=imagen_constructora /out/runners-app /app/runners-app
+
+# Copiamos archivos de configuración necesarios
+COPY --from=imagen_constructora /src/runners.toml /app/runners.toml
+COPY --from=imagen_constructora /src/runners-k8s.toml /app/runners-k8s.toml
+
+EXPOSE 8080
+
+# Variable de entorno para seleccionar el archivo de configuración
+ENV ENV=k8s
+
+# Ejecuta como usuario no root
+USER nonroot
+
+# Entrada del contenedor
+ENTRYPOINT ["/app/runners-app"]
+```
+
+construimos la imagen usando otro nombre para poder así comparar una con otra:
+
+```ps
+docker build -f .\Dockerfile .\ -t mi-runners-app
+```
+
+vemos que la nueva imagen ocupa 6.77MB en lugar de 167MB, y el espacio en disco 27.3MB frente a 806MB:
+
+```ps
+docker images
+
+IMAGE                   ID             DISK USAGE   CONTENT SIZE   EXTRA
+mi-runners-app:latest   985bb5a18554       27.3MB         6.77MB
+runners-app:latest      30aa4dce5595        806MB          167MB
+```
+
+La imagen nueva que hemos creado es distrolless, no tiene siquiere un shell, y se ejecuta con un `USER nonroot`. La imagen que se usa para compilar el programa podemos eliminarla:
+
+```ps
+docker system prune
+```
+
+### Publicar una imagen
+
+Para publicar la imagen primero la tageamos, indicando el prefijo del repositorio al que querremos publicarla. Voy a publicarla al dockerhub:
+
+```ps
+docker tag runners-app egsmartin/runners-app:v1.0
+```
+
+vemos la imagen tageada (tenemos las dos imagenes en el repositorio local, aunque no ocupan espacio doble):
+
+```ps
+docker images
+
+IMAGE                        ID             DISK USAGE   CONTENT SIZE   EXTRA
+egsmartin/runners-app:v1.0   f914b331558d       27.3MB         6.77MB
+runners-app:latest           f914b331558d       27.3MB         6.77MB
+```
+
+ahora hacemos login y publicamos:
+
+```ps
+docker login
+
+docker push egsmartin/runners-app:v1.0
+```
+
+### docker compose
+
+```ps
+docker-compose up
+docker-compose down
+```
+
+o detachadas:
+
+```ps
+docker-compose -d up
+docker-compose -d down
+```
+
+podemos añadir varias instanacias:
+
+docker compose up -d --scale runners-app=3
