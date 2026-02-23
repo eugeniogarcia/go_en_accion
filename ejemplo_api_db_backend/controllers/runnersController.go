@@ -31,6 +31,7 @@ func NewRunnersController(runnersService *services.RunnersService, usersService 
 }
 
 func (rc RunnersController) CreateRunner(ctx *gin.Context) {
+	// actualizamos la metrica de contador de peticiones HTTP cada vez que se recibe una solicitud en el endpoint create runner
 	metrics.HttpRequestsCounter.Inc()
 
 	accessToken := ctx.Request.Header.Get("Token")
@@ -71,6 +72,7 @@ func (rc RunnersController) CreateRunner(ctx *gin.Context) {
 }
 
 func (rc RunnersController) UpdateRunner(ctx *gin.Context) {
+	// actualizamos la metrica de contador de peticiones HTTP cada vez que se recibe una solicitud en el endpoint create runner
 	metrics.HttpRequestsCounter.Inc()
 
 	accessToken := ctx.Request.Header.Get("Token")
@@ -110,6 +112,7 @@ func (rc RunnersController) UpdateRunner(ctx *gin.Context) {
 }
 
 func (rc RunnersController) DeleteRunner(ctx *gin.Context) {
+	// actualizamos la metrica de contador de peticiones HTTP cada vez que se recibe una solicitud en el endpoint create runner
 	metrics.HttpRequestsCounter.Inc()
 
 	accessToken := ctx.Request.Header.Get("Token")
@@ -136,11 +139,13 @@ func (rc RunnersController) DeleteRunner(ctx *gin.Context) {
 }
 
 func (rc RunnersController) GetRunner(ctx *gin.Context) {
+	// actualizamos la metrica de contador de peticiones HTTP cada vez que se recibe una solicitud en el endpoint create runner
 	metrics.HttpRequestsCounter.Inc()
 
 	accessToken := ctx.Request.Header.Get("Token")
 	auth, responseErr := rc.usersService.AuthorizeUser(accessToken, []string{ROLE_ADMIN, ROLE_RUNNER})
 	if responseErr != nil {
+		// actualizamos la metrica de contador informando también la etiqueta correspondiente al status code
 		metrics.GetRunnerHttpResponsesCounter.WithLabelValues(
 			strconv.Itoa(responseErr.Status)).Inc()
 		ctx.JSON(responseErr.Status, responseErr)
@@ -148,6 +153,7 @@ func (rc RunnersController) GetRunner(ctx *gin.Context) {
 	}
 
 	if !auth {
+		// actualizamos la metrica de contador informando también la etiqueta correspondiente al status code
 		metrics.GetRunnerHttpResponsesCounter.WithLabelValues("401").Inc()
 		ctx.Status(http.StatusUnauthorized)
 		return
@@ -158,23 +164,29 @@ func (rc RunnersController) GetRunner(ctx *gin.Context) {
 
 	response, responseErr := rc.runnersService.GetRunner(runnerId)
 	if responseErr != nil {
+		// actualizamos la metrica de contador informando también la etiqueta correspondiente al status code
 		metrics.GetRunnerHttpResponsesCounter.WithLabelValues(
 			strconv.Itoa(responseErr.Status)).Inc()
 		ctx.JSON(responseErr.Status, responseErr)
 		return
 	}
 
+	// actualizamos la metrica de contador informando también la etiqueta correspondiente al status code
 	metrics.GetRunnerHttpResponsesCounter.WithLabelValues("200").Inc()
 	ctx.JSON(http.StatusOK, response)
 }
 
 func (rc RunnersController) GetRunnersBatch(ctx *gin.Context) {
+	// actualizamos la metrica de contador de peticiones HTTP cada vez que se recibe una solicitud en el endpoint create runner
 	metrics.HttpRequestsCounter.Inc()
+
+	// Medimos la duración de la operación (percentiles, valor medio, desviacion estándar, etc.) utilizando un histograma de Prometheus. Para ello, creamos un timer al inicio del handler y lo detenemos al final del handler utilizando defer. El timer observará la duración de la operación y actualizará el histograma con ese valor.
 	timer := prometheus.NewTimer(prometheus.ObserverFunc(func(f float64) {
 		metrics.GetAllRunnersTimer.Observe(f)
 	}))
 
 	defer func() {
+		//termina la observación, para el cronómetro y actualiza el histograma con la duración de la operación
 		timer.ObserveDuration()
 	}()
 

@@ -646,7 +646,9 @@ func (rc ResultsController) CreateResult(ctx *gin.Context) {
 
 Para observar la aplicación vamos a utilizar Prometheus y Grafana. Con Prometheus podemos definir métricas, e instrumentalizar los servicios/aplicaciones para que publique estas métricas en el repositorio central de Prometheus. La extracción de las metricas puede hacerse en modo pull (Prometheus extrae las metricas) o push (las aplicaciones/servicios publican las métricas). Típicamente se hace pull para asegurar que el repositorio central de Prometheus no se sature.
 
-Las metricas en Prometheus se clasifican en tres tipos: contadores, histogramas y gauges
+### Métricas
+
+Las métricas en Prometheus se clasifican en tres tipos: contadores, histogramas y gauges
 
 - Contadores se utilizan para contar eventos, como el número de peticiones HTTP o el número de errores, lo que nos permite monitorear el comportamiento de la aplicación y detectar posibles problemas
 - Gauges se utilizan para medir valores que pueden subir y bajar, como la cantidad de memoria utilizada o el número de conexiones abiertas, pero en este caso no los vamos a utilizar
@@ -690,7 +692,76 @@ var (
 )
 ```
 
+### Exportar las métricas
 
+Una vez tenemos las metricas definidas, tenemos que exportarlas. Para exportarlas se usa un cliente de Prometheus. En `prometheus.go` tenemos definido el exporter:
+
+```go
+func InitPrometheus() {
+	http.Handle("/metrics", promhttp.Handler()) // endpoint en el que expondremos las métricas
+	http.ListenAndServe(":9000", nil)
+}
+```
+
+y lo arrancamos en `main.go` en una gorutina:
+
+```go
+// inicializamos Prometheus
+go server.InitPrometheus()
+```
+
+### Informar las métricas
+
+Una vez hemos definido las métricas y configurado el exportador de métricas, tenemos que identificar en la lógica de la aplicación donde debemos darles un valor.
+
+En el controlador, cada vez que recibimos una llamada actualizamos el contador:
+
+```go
+func (rc RunnersController) GetRunnersBatch(ctx *gin.Context) {
+	// actualizamos la metrica de contador de peticiones HTTP cada vez que se recibe una solicitud en el endpoint create runner	
+	metrics.HttpRequestsCounter.Inc()
+
+[...]
+```
+
+en las metricas en las que usamos etiquetas, además de informar el valor de la métrica tenemos que informar las etiquetas:
+
+```go
+[...]
+
+if responseErr != nil {
+	// actualizamos la metrica de contador informando también la etiqueta correspondiente al status code
+	metrics.GetRunnerHttpResponsesCounter.WithLabelValues(
+		strconv.Itoa(responseErr.Status)).Inc()
+	ctx.JSON(responseErr.Status, responseErr)
+	return
+}
+
+// actualizamos la metrica de contador informando también la etiqueta correspondiente al status code
+metrics.GetRunnerHttpResponsesCounter.WithLabelValues("200").Inc()
+
+[...]
+```
+
+en este ejemplo estamos informando la etiqueta con el http status code.
+
+Podemos usar un timer para informar una métrica de tipo histograma y medir la duración. El timer registra automáticamente el tiempo que se ha tardado en procesar la peticion y permite el cálculo del p50, p95, p99 a lo largo del tiempo.
+
+```go
+[...]
+
+// Medimos la duración de la operación (percentiles, valor medio, desviacion estándar, etc.) utilizando un histograma de Prometheus. Para ello, creamos un timer al inicio del handler y lo detenemos al final del handler utilizando defer. El timer observará la duración de la operación y actualizará el histograma con ese valor.
+timer := prometheus.NewTimer(prometheus.ObserverFunc(func(f float64) {
+	metrics.GetAllRunnersTimer.Observe(f)
+}))
+
+defer func() {
+	//termina la observación, para el cronómetro y actualiza el histograma con la duración de la operación
+	timer.ObserveDuration()
+}()
+
+[...]
+```
 
 ## Automatización de tests
 

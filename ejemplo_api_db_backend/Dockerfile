@@ -45,7 +45,10 @@ COPY --from=imagen_constructora /out/runners-app /app/runners-app
 COPY --from=imagen_constructora /src/runners.toml /app/runners.toml
 COPY --from=imagen_constructora /src/runners-k8s.toml /app/runners-k8s.toml
 
+# Puerto para exponer la API REST
 EXPOSE 8080
+# Puerto para métricas de Prometheus
+EXPOSE 9000
 
 # Variable de entorno para seleccionar el archivo de configuración
 ENV ENV=k8s
