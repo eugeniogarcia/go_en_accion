@@ -642,6 +642,56 @@ func (rc ResultsController) CreateResult(ctx *gin.Context) {
 	[...]
 ```
 
+## Observavilidad
+
+Para observar la aplicación vamos a utilizar Prometheus y Grafana. Con Prometheus podemos definir métricas, e instrumentalizar los servicios/aplicaciones para que publique estas métricas en el repositorio central de Prometheus. La extracción de las metricas puede hacerse en modo pull (Prometheus extrae las metricas) o push (las aplicaciones/servicios publican las métricas). Típicamente se hace pull para asegurar que el repositorio central de Prometheus no se sature.
+
+Las metricas en Prometheus se clasifican en tres tipos: contadores, histogramas y gauges
+
+- Contadores se utilizan para contar eventos, como el número de peticiones HTTP o el número de errores, lo que nos permite monitorear el comportamiento de la aplicación y detectar posibles problemas
+- Gauges se utilizan para medir valores que pueden subir y bajar, como la cantidad de memoria utilizada o el número de conexiones abiertas, pero en este caso no los vamos a utilizar
+- Histogramas se utilizan para medir la distribución de los tiempos de ejecución de una operación, lo que nos permite entender mejor el rendimiento de la aplicación y detectar posibles cuellos de botella
+
+otro concepto que se usa con las métricas es el de etiqueta. Cuando se publica una métrica se puede etiquetar con una o varias etiquetas (pares clave-valor). Cada etiquete representa una dimension en la que se pueden analizar las métricas.
+
+En nuestro caso vamos a definir tres métricas, un contador (las gauges se manejan igual que los contadores) y un histograma. En una de las métricas vamos a utilizar una etiqueta. Las definimos en `metrics.go`:
+
+```go
+package metrics
+
+import (
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promauto"
+)
+
+// Definimos las metricas que vamos a utilizar en la aplicacion, estas metricas se pueden usar en cualquier parte de la aplicacion para medir el rendimiento y el comportamiento de las diferentes operaciones.
+var (
+	HttpRequestsCounter = promauto.NewCounter( // un contador
+		prometheus.CounterOpts{
+			Name: "runners_app_http_requests", // nombre de la metrica
+			Help: "Número total de peticiones HTTP", // descripcion de la metrica
+		},
+	)
+
+	GetRunnerHttpResponsesCounter = promauto.NewCounterVec( // un contador con etiquetas. Las etiquetas nos permiten clasificar las métricas en diferentes dimensiones. En este caso, vamos a clasificar las respuestas HTTP del endpoint get runner por su código de estado (status).
+		prometheus.CounterOpts{
+			Name: "runners_app_get_runner_http_responses",
+			Help: "Número total de respuestas HTTP para el endpoint get runner",
+		},
+		[]string{"estado"}, // creamos una etiqueta llamada estado para clasificar las respuestas HTTP por su código de estado
+	)
+
+	GetAllRunnersTimer = promauto.NewHistogram( // un histograma. Un histograma nos permite medir la distribución de los tiempos de ejecución de una operación. En este caso, vamos a medir la duración de la operación get all runners.
+		prometheus.HistogramOpts{
+			Name: "runners_app_get_all_runners_duration",
+			Help: "Duración de la operación get all runners en segundos",
+		},
+	)
+)
+```
+
+
+
 ## Automatización de tests
 
 Se utiliza el paquete de tests para automatizar las pruebas. No hay nada especial salvo el uso de mocks para emular la base de datos - durante la ejecución de los tests.
@@ -800,7 +850,7 @@ docker build -f name_of_dockerfile path_to_dockerfile
 para construir nuestra imagen hacemos:
 
 ```ps
-docker build -f .\Dockerfile .\ -t runners-app
+docker build -f .\Dockerfile .\ -t egsmartin/runners-app:latest
 ```
 
 nuestro dockerfile:
@@ -988,3 +1038,22 @@ docker-compose -d down
 podemos añadir varias instanacias:
 
 docker compose up -d --scale runners-app=3
+
+## Kubernetes
+
+He estudiado [kuernetes](https://github.com/eugeniogarcia/kubernetes_up_running/blob/main/readme.md) en otro repositorio.
+
+Para probar esta aplicacion voy a utilizar el cluster _kind_ que se incluye con Docker Desktop. Una vez creado el cluster utilizo el script [`.\instalar.ps1`](https://github.com/eugeniogarcia/kubernetes_up_running/blob/main/instalar.ps1) que se incluye en mi repositorio _kubernetes up and running_. Este script instala el ingress de _contour/envoy_, el metrics server, y el operador _k6_ (para hacer pruebas de rendimiento).
+
+En al apartado anterior creamos la imagen de la aplicación con:
+
+```ps
+docker build -f .\Dockerfile .\ -t egsmartin/runners-app:latest
+```
+
+la publicamos en el docker hub:
+
+```ps
+docker push egsmartin/runners-app:latest
+```
+
