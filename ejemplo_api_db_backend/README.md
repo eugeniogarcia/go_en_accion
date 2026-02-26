@@ -1150,8 +1150,41 @@ kubectl apply -f .\runners-app-deployment.yaml
 kubernetes> kubectl apply -f .\runners-app-service.yaml
 ```
 
+En este punto podemos comprobar que todo funciona. El servicio tipo cluster que hemos creado se expone el `localhost:8080`. En primer lugar creamos un token usando basic auth. El usuario `admin` contraseña `admin` tiene el role necesario para crear runners:
+
+```ps
+curl --location --request POST 'localhost:8080/login' \
+--header 'Authorization: ••••••' \
+--data ''
+```
+
+Usamos le token para llamar al resto de servicios, pasandolo en una cabecera llamada `Token`. Creamos runners:
+
+```ps
+curl --location 'localhost:8090/runner' \
+--header 'Token: JDJhJDEwJG5ONmFXQUdDMXprSWJmZWFYV1RxSy5KcnRMVWZ4dU43Q25pR1lmQmxCZlF0T2F3MFN5cEJH' \
+--header 'Content-Type: application/json' \
+--data '{
+"first_name":"Nicolas",
+"last_name":"Garcia Zach",
+"age":14,
+"is_active":true,
+"country":"España",
+"personal_best":"",
+"season_best":""
+}
+'
+```
+
+consultamos los runners creados:
+
+```ps
+curl --location 'localhost:8090/runner' \
+--header 'Token: JDJhJDEwJC94UWdCMGUzb3pVLkdWRUZsMGlDeXU1cmM2UG9uYUNTZGxRZWouVkd1ZzdXeERlTHcyc1BP'
+```
+
+
 AQUI
-- ver porque funciona en localhost:8080
 - mostrar grafana/prometheus
 crear grafana en cluster
 publicar endpoints de grafana y prometheus, y app en el httpproxy

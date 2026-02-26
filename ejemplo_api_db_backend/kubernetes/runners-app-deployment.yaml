@@ -11,6 +11,10 @@ spec:
     metadata:
       labels:
         app: runners-app
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9000"
+        prometheus.io/path: "/metrics"
     spec:
       containers:
         - image: docker.io/egsmartin/runners-app:latest
@@ -18,6 +22,7 @@ spec:
           imagePullPolicy: Always
           ports:
             - containerPort: 8080
+            - containerPort: 9000
           env:
             - name: ENV
               value: "k8s"
