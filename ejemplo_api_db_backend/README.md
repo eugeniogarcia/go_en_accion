@@ -762,6 +762,10 @@ defer func() {
 
 [...]
 ```
+ 
+### Grafana
+
+Se describe en el apartado de [Kubernetes](#kubernetes).
 
 ## Automatización de tests
 
@@ -1116,6 +1120,16 @@ He estudiado [kuernetes](https://github.com/eugeniogarcia/kubernetes_up_running/
 
 Para probar esta aplicacion voy a utilizar el cluster _kind_ que se incluye con Docker Desktop. Una vez creado el cluster utilizo el script [`.\instalar.ps1`](https://github.com/eugeniogarcia/kubernetes_up_running/blob/main/instalar.ps1) que se incluye en mi repositorio _kubernetes up and running_. Este script instala el ingress de _contour/envoy_, el metrics server, y el operador _k6_ (para hacer pruebas de rendimiento).
 
+Crearemos dentro del cluster un [cluster de Postgress](https://github.com/eugeniogarcia/kubernetes_up_running/blob/main/postgress/readme.md), y también las instancias de [grafana y prometheus](https://github.com/eugeniogarcia/kubernetes_up_running/blob/main/prometheus/readme.md).
+
+Tenemos que configurar el [archivo de configuración](runners-k8s.toml) para que apunte a la instancia de Postgres que hemos creado. El cluster de Postgres expone tres servicios:
+
+- `mi-postgres-rw.database.svc`. Este servicio ataca a la instancia principal, y admite lecturas y escrituras
+- `mi-postgres-ro.database.svc`. Este servicio ataca las réplicas y solo sirve para hacer consultas. El servicio balance las peticiones entre todas las réplicas
+- `mi-postgres-r.database.svc`. Este servicio permite acceder e solo lectura a una réplica concreta. Para llamar hay que hacer `[nombre replica].mi-postgres-r.database.svc`
+
+En nuestro caso usaremos el servicio de lectura y escritura.
+
 En al apartado anterior creamos la imagen de la aplicación con:
 
 ```ps
@@ -1128,3 +1142,16 @@ la publicamos en el docker hub:
 docker push egsmartin/runners-app:latest
 ```
 
+y a continuación ya podemos desplegar la aplicacióne en el cluster kubernetes
+
+```ps
+kubectl apply -f .\runners-app-deployment.yaml
+
+kubernetes> kubectl apply -f .\runners-app-service.yaml
+```
+
+AQUI
+- ver porque funciona en localhost:8080
+- mostrar grafana/prometheus
+crear grafana en cluster
+publicar endpoints de grafana y prometheus, y app en el httpproxy

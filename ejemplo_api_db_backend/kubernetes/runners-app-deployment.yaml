@@ -13,9 +13,9 @@ spec:
         app: runners-app
     spec:
       containers:
-        - image: runners-app:latest
+        - image: docker.io/egsmartin/runners-app:latest
           name: runners-app
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:
