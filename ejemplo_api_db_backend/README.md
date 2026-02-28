@@ -1183,8 +1183,4 @@ curl --location 'localhost:8090/runner' \
 --header 'Token: JDJhJDEwJC94UWdCMGUzb3pVLkdWRUZsMGlDeXU1cmM2UG9uYUNTZGxRZWouVkd1ZzdXeERlTHcyc1BP'
 ```
 
-
-AQUI
-- mostrar grafana/prometheus
-crear grafana en cluster
-publicar endpoints de grafana y prometheus, y app en el httpproxy
+en el script [simulamos carga para viaualizar en grafana](./kubernetes/load_generator.ps1).
